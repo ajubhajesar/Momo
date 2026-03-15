@@ -41,12 +41,45 @@ jobs:
           echo "y" | sdkmanager "ndk;21.4.7075529"
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           echo "ndk.dir=$ANDROID_HOME/ndk/21.4.7075529" >> local.properties
-          ls $ANDROID_HOME/ndk/21.4.7075529 && echo "NDK OK" || echo "NDK MISSING"
 
       - name: Install build dependencies
         run: sudo apt-get install -y yasm cmake ninja-build meson
 
+      - name: Fetch submodule hashes for cache keys
+        run: |
+          git submodule status TMessagesProj/jni/ffmpeg > ffmpeg_status
+          git submodule status TMessagesProj/jni/dav1d  > dav1d_status
+          git submodule status TMessagesProj/jni/libvpx > libvpx_status
+          git submodule status TMessagesProj/jni/boringssl > boringssl_status
+
+      - name: Cache libvpx
+        id: cache-libvpx
+        uses: actions/cache@v4
+        with:
+          path: TMessagesProj/jni/libvpx/build
+          key: libvpx-${{ hashFiles('libvpx_status', 'TMessagesProj/jni/build_libvpx_clang.sh') }}
+
+      - name: Cache dav1d + ffmpeg
+        id: cache-ffmpeg
+        uses: actions/cache@v4
+        with:
+          path: |
+            TMessagesProj/jni/dav1d/build
+            TMessagesProj/jni/ffmpeg/build
+          key: ffmpeg-${{ hashFiles('ffmpeg_status', 'dav1d_status', 'TMessagesProj/jni/build_ffmpeg_clang.sh', 'TMessagesProj/jni/build_dav1d.sh', 'TMessagesProj/jni/patches/ffmpeg/**') }}
+
+      - name: Cache boringssl
+        id: cache-boringssl
+        uses: actions/cache@v4
+        with:
+          path: TMessagesProj/jni/boringssl/build
+          key: boringssl-${{ hashFiles('boringssl_status') }}
+
       - name: Build native libs (ffmpeg/dav1d, libvpx, boringssl)
+        if: |
+          steps.cache-libvpx.outputs.cache-hit != 'true' ||
+          steps.cache-ffmpeg.outputs.cache-hit != 'true' ||
+          steps.cache-boringssl.outputs.cache-hit != 'true'
         run: ./run init libs
 
       - name: Set up signing
