@@ -1,0 +1,90 @@
+name: Build
+
+on:
+  push:
+    branches: [ "lifesupport" ]
+    paths-ignore:
+      - '**.md'
+      - '.github/**'
+      - '!.github/workflows/build.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Install NDK
+        run: |
+          echo "y" | sudo ${ANDROID_HOME}/tools/bin/sdkmanager \
+            --install "ndk;21.4.7075529" \
+            --sdk_root=${ANDROID_SDK_ROOT} &> /dev/null || true
+          echo "sdk.dir=${ANDROID_HOME}" > local.properties
+          echo "ndk.dir=${ANDROID_HOME}/ndk/21.4.7075529" >> local.properties
+
+      - name: Install build dependencies
+        run: sudo apt-get install -y yasm
+
+      - name: Set up signing
+        run: |
+          echo "KEYSTORE_PASS=android" > signing.properties
+          echo "ALIAS_NAME=androidkey" >> signing.properties
+          echo "ALIAS_PASS=android" >> signing.properties
+          export LOCAL_PROPERTIES=$(base64 -w 0 signing.properties)
+          echo "LOCAL_PROPERTIES=$LOCAL_PROPERTIES" >> $GITHUB_ENV
+
+      - name: Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle
+          key: gradle-${{ hashFiles('**/*.gradle') }}
+
+      - name: Build APK (foss release — arm64)
+        run: |
+          export LOCAL_PROPERTIES="${{ env.LOCAL_PROPERTIES }}"
+          export COMPILE_NATIVE=true
+          export NATIVE_TARGET=arm64-v8a
+          ./gradlew TMessagesProj:assembleFoss \
+            -Pandroid.injected.build.abi=arm64-v8a \
+            --no-daemon
+
+      - name: Find APK
+        run: |
+          APK=$(find TMessagesProj/build/outputs/apk -name "*.apk" | grep arm64 | head -1)
+          echo "APK=$APK" >> $GITHUB_ENV
+          echo "Found: $APK"
+
+      - name: Delete existing release
+        run: gh release delete latest --yes --cleanup-tag || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Latest Build"
+          body: "Built from ${{ github.sha }}"
+          prerelease: true
+          files: ${{ env.APK }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

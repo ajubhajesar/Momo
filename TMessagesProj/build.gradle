@@ -276,15 +276,7 @@ android {
 
     }
 
-    flavorDimensions ["version"]
-
-    sourceSets.all { set ->
-        if (set.name.startsWith("full")) {
-            set.dependencies {
-                implementation fileTree("libs")
-            }
-        }
-    }
+    // flavorDimensions removed — no productFlavors defined
 
     tasks.all { task ->
         if (((task.name.endsWith("Ndk") || task.name.startsWith("generateJsonModel") || task.name.startsWith("externalNativeBuild"))) && !(task.name.contains("Debug") || task.name.contains("Foss") || task.name.contains("Fdroid"))) {
