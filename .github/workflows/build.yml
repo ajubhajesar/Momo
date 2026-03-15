@@ -14,9 +14,108 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+
+  # ── Job 1: Build FFmpeg + libvpx + dav1d ──────────────────────────────────
+  ffmpeg:
+    name: Native Build (FFmpeg + libvpx + dav1d)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Fetch submodule hashes
+        run: |
+          git submodule status TMessagesProj/jni/ffmpeg > ffmpeg_status
+          git submodule status TMessagesProj/jni/libvpx > libvpx_status
+          git submodule status TMessagesProj/jni/dav1d  > dav1d_status
+
+      - name: Cache FFmpeg + libvpx + dav1d
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            TMessagesProj/jni/ffmpeg/build
+            TMessagesProj/jni/libvpx/build
+            TMessagesProj/jni/dav1d/build
+          key: ffmpeg-${{ hashFiles('ffmpeg_status', 'libvpx_status', 'dav1d_status', 'TMessagesProj/jni/build_ffmpeg_clang.sh', 'TMessagesProj/jni/build_libvpx_clang.sh', 'TMessagesProj/jni/build_dav1d.sh', 'TMessagesProj/jni/patches/ffmpeg/**') }}
+
+      - name: Setup Android SDK
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: android-actions/setup-android@v3
+
+      - name: Install NDK
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          echo "y" | sdkmanager "ndk;21.4.7075529"
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          echo "ndk.dir=$ANDROID_HOME/ndk/21.4.7075529" >> local.properties
+
+      - name: Install build dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: sudo apt-get install -y yasm meson nasm
+
+      - name: Build libvpx
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: ./run init libs libvpx
+
+      - name: Build dav1d + FFmpeg
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          # Set PKG_CONFIG_PATH so ffmpeg configure can find dav1d after it's built
+          export PKG_CONFIG_PATH="\
+          $PWD/TMessagesProj/jni/dav1d/build/arm64-v8a/lib/pkgconfig:\
+          $PWD/TMessagesProj/jni/dav1d/build/armeabi-v7a/lib/pkgconfig:\
+          $PWD/TMessagesProj/jni/dav1d/build/x86/lib/pkgconfig:\
+          $PWD/TMessagesProj/jni/dav1d/build/x86_64/lib/pkgconfig:\
+          $PKG_CONFIG_PATH"
+          ./run init libs ffmpeg
+
+  # ── Job 2: Build BoringSSL ─────────────────────────────────────────────────
+  boringssl:
+    name: Native Build (BoringSSL)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Fetch submodule hash
+        run: git submodule status TMessagesProj/jni/boringssl > boringssl_status
+
+      - name: Cache BoringSSL
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: TMessagesProj/jni/boringssl/build
+          key: boringssl-${{ hashFiles('boringssl_status') }}
+
+      - name: Setup Android SDK
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: android-actions/setup-android@v3
+
+      - name: Install NDK
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          echo "y" | sdkmanager "ndk;21.4.7075529"
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          echo "ndk.dir=$ANDROID_HOME/ndk/21.4.7075529" >> local.properties
+
+      - name: Install build dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: sudo apt-get install -y cmake ninja-build
+
+      - name: Build BoringSSL
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: ./run init libs boringssl
+
+  # ── Job 3: Compile .so + Build APK ────────────────────────────────────────
   build:
     name: Build APK
     runs-on: ubuntu-latest
+    needs: [ ffmpeg, boringssl ]
     permissions:
       contents: write
 
@@ -36,51 +135,40 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install NDK 21.4.7075529
+      - name: Install NDK
         run: |
           echo "y" | sdkmanager "ndk;21.4.7075529"
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           echo "ndk.dir=$ANDROID_HOME/ndk/21.4.7075529" >> local.properties
 
-      - name: Install build dependencies
-        run: sudo apt-get install -y yasm cmake ninja-build meson nasm
-
-      - name: Fetch submodule hashes for cache keys
+      - name: Fetch submodule hashes
         run: |
-          git submodule status TMessagesProj/jni/ffmpeg > ffmpeg_status
-          git submodule status TMessagesProj/jni/dav1d  > dav1d_status
-          git submodule status TMessagesProj/jni/libvpx > libvpx_status
+          git submodule status TMessagesProj/jni/ffmpeg   > ffmpeg_status
+          git submodule status TMessagesProj/jni/libvpx   > libvpx_status
+          git submodule status TMessagesProj/jni/dav1d    > dav1d_status
           git submodule status TMessagesProj/jni/boringssl > boringssl_status
 
-      - name: Cache libvpx
-        id: cache-libvpx
-        uses: actions/cache@v4
-        with:
-          path: TMessagesProj/jni/libvpx/build
-          key: libvpx-${{ hashFiles('libvpx_status', 'TMessagesProj/jni/build_libvpx_clang.sh') }}
-
-      - name: Cache dav1d + ffmpeg
-        id: cache-ffmpeg
+      - name: Restore FFmpeg + libvpx + dav1d cache
         uses: actions/cache@v4
         with:
           path: |
-            TMessagesProj/jni/dav1d/build
             TMessagesProj/jni/ffmpeg/build
-          key: ffmpeg-${{ hashFiles('ffmpeg_status', 'dav1d_status', 'TMessagesProj/jni/build_ffmpeg_clang.sh', 'TMessagesProj/jni/build_dav1d.sh', 'TMessagesProj/jni/patches/ffmpeg/**') }}
+            TMessagesProj/jni/libvpx/build
+            TMessagesProj/jni/dav1d/build
+          key: ffmpeg-${{ hashFiles('ffmpeg_status', 'libvpx_status', 'dav1d_status', 'TMessagesProj/jni/build_ffmpeg_clang.sh', 'TMessagesProj/jni/build_libvpx_clang.sh', 'TMessagesProj/jni/build_dav1d.sh', 'TMessagesProj/jni/patches/ffmpeg/**') }}
 
-      - name: Cache boringssl
-        id: cache-boringssl
+      - name: Restore BoringSSL cache
         uses: actions/cache@v4
         with:
           path: TMessagesProj/jni/boringssl/build
           key: boringssl-${{ hashFiles('boringssl_status') }}
 
-      - name: Build native libs (ffmpeg/dav1d, libvpx, boringssl)
-        if: |
-          steps.cache-libvpx.outputs.cache-hit != 'true' ||
-          steps.cache-ffmpeg.outputs.cache-hit != 'true' ||
-          steps.cache-boringssl.outputs.cache-hit != 'true'
-        run: ./run init libs
+      - name: Cache compiled .so libs
+        id: cache-so
+        uses: actions/cache@v4
+        with:
+          path: TMessagesProj/src/main/libs
+          key: so-arm64-${{ hashFiles('TMessagesProj/jni/**', 'ffmpeg_status', 'libvpx_status', 'dav1d_status', 'boringssl_status') }}
 
       - name: Set up signing
         run: |
@@ -93,10 +181,20 @@ jobs:
           path: ~/.gradle
           key: gradle-${{ hashFiles('**/*.gradle') }}
 
-      - name: Build APK
+      - name: Build APK (compile .so + package)
+        if: steps.cache-so.outputs.cache-hit != 'true'
         run: |
           export LOCAL_PROPERTIES="${{ env.LOCAL_PROPERTIES }}"
           export COMPILE_NATIVE=true
+          export NATIVE_TARGET=arm64-v8a
+          ./gradlew TMessagesProj:assembleFoss \
+            -Pandroid.injected.build.abi=arm64-v8a \
+            --no-daemon
+
+      - name: Build APK (use cached .so)
+        if: steps.cache-so.outputs.cache-hit == 'true'
+        run: |
+          export LOCAL_PROPERTIES="${{ env.LOCAL_PROPERTIES }}"
           export NATIVE_TARGET=arm64-v8a
           ./gradlew TMessagesProj:assembleFoss \
             -Pandroid.injected.build.abi=arm64-v8a \
