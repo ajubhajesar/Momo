@@ -46,11 +46,10 @@ jobs:
       - name: Install build dependencies
         run: sudo apt-get install -y yasm cmake ninja-build
 
-      - name: Build native init libs
-        run: ./run init libs
-
-      - name: Build native external libs
-        run: ./run libs update
+      - name: Build native libs (ffmpeg, libvpx, boringssl)
+        run: |
+          export NATIVE_TARGET=arm64-v8a
+          ./run init libs
 
       - name: Set up signing
         run: |
