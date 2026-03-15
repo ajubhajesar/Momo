@@ -10981,7 +10981,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 continue;
             }
             MessageObject messageObject = imagesArr.get(index);
-            if (!messageObject.isVideo() && !messageObject.isYouTubeVideo()) {
+            if (!messageObject.isVideo() && !messageObject.isYouTubeVideo() && !messageObject.isRoundVideo()) {
                 fullscreenButton[b].setVisibility(View.INVISIBLE);
                 continue;
             }
@@ -10999,7 +10999,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                     }
                 }
             }
-            if (AndroidUtilities.displaySize.y > AndroidUtilities.displaySize.x && w > h) {
+            if (AndroidUtilities.displaySize.y > AndroidUtilities.displaySize.x) {
                 if (fullscreenButton[b].getVisibility() != View.VISIBLE) {
                     fullscreenButton[b].setVisibility(View.VISIBLE);
                 }
