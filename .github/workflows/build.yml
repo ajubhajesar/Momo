@@ -44,12 +44,10 @@ jobs:
           ls $ANDROID_HOME/ndk/21.4.7075529 && echo "NDK OK" || echo "NDK MISSING"
 
       - name: Install build dependencies
-        run: sudo apt-get install -y yasm cmake ninja-build
+        run: sudo apt-get install -y yasm cmake ninja-build meson
 
-      - name: Build native libs (ffmpeg, libvpx, boringssl)
-        run: |
-          export NATIVE_TARGET=arm64-v8a
-          ./run init libs
+      - name: Build native libs (ffmpeg/dav1d, libvpx, boringssl)
+        run: ./run init libs
 
       - name: Set up signing
         run: |
