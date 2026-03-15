@@ -33,24 +33,23 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Install NDK
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install NDK 21.4.7075529
         run: |
-          echo "y" | sudo ${ANDROID_HOME}/tools/bin/sdkmanager \
-            --install "ndk;21.4.7075529" \
-            --sdk_root=${ANDROID_SDK_ROOT} &> /dev/null || true
-          echo "sdk.dir=${ANDROID_HOME}" > local.properties
-          echo "ndk.dir=${ANDROID_HOME}/ndk/21.4.7075529" >> local.properties
+          echo "y" | sdkmanager "ndk;21.4.7075529"
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          echo "ndk.dir=$ANDROID_HOME/ndk/21.4.7075529" >> local.properties
+          ls $ANDROID_HOME/ndk/21.4.7075529 && echo "NDK OK" || echo "NDK MISSING"
 
       - name: Install build dependencies
         run: sudo apt-get install -y yasm
 
       - name: Set up signing
         run: |
-          echo "KEYSTORE_PASS=android" > signing.properties
-          echo "ALIAS_NAME=androidkey" >> signing.properties
-          echo "ALIAS_PASS=android" >> signing.properties
-          export LOCAL_PROPERTIES=$(base64 -w 0 signing.properties)
-          echo "LOCAL_PROPERTIES=$LOCAL_PROPERTIES" >> $GITHUB_ENV
+          printf "KEYSTORE_PASS=android\nALIAS_NAME=androidkey\nALIAS_PASS=android\n" > signing.properties
+          echo "LOCAL_PROPERTIES=$(base64 -w 0 signing.properties)" >> $GITHUB_ENV
 
       - name: Gradle cache
         uses: actions/cache@v4
@@ -58,7 +57,7 @@ jobs:
           path: ~/.gradle
           key: gradle-${{ hashFiles('**/*.gradle') }}
 
-      - name: Build APK (foss release — arm64)
+      - name: Build APK
         run: |
           export LOCAL_PROPERTIES="${{ env.LOCAL_PROPERTIES }}"
           export COMPILE_NATIVE=true
@@ -69,7 +68,8 @@ jobs:
 
       - name: Find APK
         run: |
-          APK=$(find TMessagesProj/build/outputs/apk -name "*.apk" | grep arm64 | head -1)
+          APK=$(find TMessagesProj/build/outputs/apk -name "*.apk" | grep -i arm64 | head -1)
+          [ -z "$APK" ] && APK=$(find TMessagesProj/build/outputs/apk -name "*.apk" | head -1)
           echo "APK=$APK" >> $GITHUB_ENV
           echo "Found: $APK"
 
