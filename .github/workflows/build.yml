@@ -223,7 +223,9 @@ jobs:
 
       - name: Find APK
         run: |
-          APK=$(find TMessagesProj/build/outputs/apk -name "*.apk" | grep -i arm64 | head -1)
+          echo "All APKs found:"
+          find TMessagesProj/build/outputs/apk -name "*.apk" 2>/dev/null || echo "No APKs found"
+          APK=$(find TMessagesProj/build/outputs/apk -name "*.apk" | grep -iv "unsigned\|unaligned" | head -1)
           [ -z "$APK" ] && APK=$(find TMessagesProj/build/outputs/apk -name "*.apk" | head -1)
           echo "APK=$APK" >> $GITHUB_ENV
           echo "Found: $APK"
