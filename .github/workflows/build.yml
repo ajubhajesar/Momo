@@ -209,6 +209,8 @@ jobs:
 
       - name: Build APK
         run: |
+          # Reduce JVM heap so R8 doesn't OOM the runner (7GB total available)
+          sed -i 's/-Xmx8192M/-Xmx4096m/g; s/-XX:MaxMetaspaceSize=4096m/-XX:MaxMetaspaceSize=512m/g' gradle.properties
           export LOCAL_PROPERTIES="${{ env.LOCAL_PROPERTIES }}"
           export COMPILE_NATIVE=true
           export NATIVE_TARGET=arm64-v8a
