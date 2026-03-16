@@ -214,7 +214,7 @@ jobs:
           export LOCAL_PROPERTIES="${{ env.LOCAL_PROPERTIES }}"
           export COMPILE_NATIVE=true
           export NATIVE_TARGET=arm64-v8a
-          ./gradlew TMessagesProj:assembleFoss \
+          ./gradlew TMessagesProj:assembleRelease \
             -Pandroid.injected.build.abi=arm64-v8a \
             --no-daemon \
             -x lintVitalFoss \
