@@ -223,17 +223,11 @@ jobs:
 
       - name: Find APK
         run: |
-          echo "All APKs found:"
-          find TMessagesProj/build/outputs/apk -name "*.apk" 2>/dev/null || echo "No APKs found"
-          APK=$(find TMessagesProj/build/outputs/apk -name "*.apk" | grep -iv "unsigned\|unaligned" | head -1)
-          [ -z "$APK" ] && APK=$(find TMessagesProj/build/outputs/apk -name "*.apk" | head -1)
+          echo "All APKs:"
+          find TMessagesProj/build/outputs -name "*.apk" 2>/dev/null || echo "none"
+          APK=$(find TMessagesProj/build/outputs -name "*.apk" | head -1)
           echo "APK=$APK" >> $GITHUB_ENV
           echo "Found: $APK"
-
-      - name: Delete existing release
-        run: gh release delete latest --yes --cleanup-tag || true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish APK
         uses: softprops/action-gh-release@v2
@@ -242,6 +236,7 @@ jobs:
           name: "Latest Build"
           body: "Built from ${{ github.sha }}"
           prerelease: true
+          make_latest: true
           files: ${{ env.APK }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
