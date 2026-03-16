@@ -184,6 +184,17 @@ jobs:
           ./patch_boringssl.sh || true
           cd ../..
 
+      - name: Apply FFmpeg source patches (C++ compat)
+        run: |
+          cd TMessagesProj/jni
+          patch -f -d ffmpeg -p1 < patches/ffmpeg/0001-compilation-magic.patch || true
+          patch -f -d ffmpeg -p1 < patches/ffmpeg/0001-PATCH-remove-deprecated-register-keyword.patch || true
+          patch -f -d ffmpeg -p1 < patches/ffmpeg/0001-PATCH-replace-SUINT-with-unsigned.patch || true
+          for ARCH in arm64-v8a armeabi-v7a x86 x86_64; do
+            [ -d ffmpeg/build/$ARCH/include ] && cp ffmpeg/config.h ffmpeg/build/$ARCH/include/config.h || true
+          done
+          ./patch_ffmpeg.sh || true
+
       - name: Cache compiled .so libs
         id: cache-so
         uses: actions/cache@v4
