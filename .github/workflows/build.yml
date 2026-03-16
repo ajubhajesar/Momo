@@ -72,6 +72,21 @@ jobs:
           $PKG_CONFIG_PATH"
           ./run init libs ffmpeg
 
+      - name: Patch FFmpeg headers for C++ compilation
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          cd TMessagesProj/jni
+          # Apply patches that were commented out in patch_ffmpeg.sh
+          patch -f -d ffmpeg -p1 < patches/ffmpeg/0001-compilation-magic.patch || true
+          patch -f -d ffmpeg -p1 < patches/ffmpeg/0001-PATCH-remove-deprecated-register-keyword.patch || true
+          patch -f -d ffmpeg -p1 < patches/ffmpeg/0001-PATCH-replace-SUINT-with-unsigned.patch || true
+          # Copy config.h (contains HAVE_FAST_64BIT etc) into each arch include dir
+          for ARCH in arm64-v8a armeabi-v7a x86 x86_64; do
+            cp ffmpeg/config.h ffmpeg/build/$ARCH/include/config.h || true
+          done
+          # Copy patched internal headers into build include dirs
+          ./patch_ffmpeg.sh
+
   # ── Job 2: Build BoringSSL ─────────────────────────────────────────────────
   boringssl:
     name: Native Build (BoringSSL)
