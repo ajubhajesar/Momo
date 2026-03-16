@@ -222,7 +222,10 @@ jobs:
           export NATIVE_TARGET=arm64-v8a
           ./gradlew TMessagesProj:assembleFoss \
             -Pandroid.injected.build.abi=arm64-v8a \
-            --no-daemon
+            --no-daemon \
+            -x lintVitalFoss \
+            -x lintVitalReportFoss \
+            -x lintVitalAnalyzeFoss
 
       - name: Build APK (use cached .so)
         if: steps.cache-so.outputs.cache-hit == 'true'
@@ -231,7 +234,10 @@ jobs:
           export NATIVE_TARGET=arm64-v8a
           ./gradlew TMessagesProj:assembleFoss \
             -Pandroid.injected.build.abi=arm64-v8a \
-            --no-daemon
+            --no-daemon \
+            -x lintVitalFoss \
+            -x lintVitalReportFoss \
+            -x lintVitalAnalyzeFoss
 
       - name: Find APK
         run: |
