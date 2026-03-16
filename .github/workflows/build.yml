@@ -196,13 +196,6 @@ jobs:
           # Copy patched internal headers into build include dirs
           ./patch_ffmpeg.sh || true
 
-      - name: Cache compiled .so libs
-        id: cache-so
-        uses: actions/cache@v4
-        with:
-          path: TMessagesProj/src/main/libs
-          key: so-arm64-${{ hashFiles('TMessagesProj/jni/**', 'ffmpeg_status', 'libvpx_status', 'dav1d_status', 'boringssl_status') }}
-
       - name: Set up signing
         run: |
           printf "KEYSTORE_PASS=android\nALIAS_NAME=androidkey\nALIAS_PASS=android\n" > signing.properties
@@ -214,23 +207,10 @@ jobs:
           path: ~/.gradle
           key: gradle-${{ hashFiles('**/*.gradle') }}
 
-      - name: Build APK (compile .so + package)
-        if: steps.cache-so.outputs.cache-hit != 'true'
+      - name: Build APK
         run: |
           export LOCAL_PROPERTIES="${{ env.LOCAL_PROPERTIES }}"
           export COMPILE_NATIVE=true
-          export NATIVE_TARGET=arm64-v8a
-          ./gradlew TMessagesProj:assembleFoss \
-            -Pandroid.injected.build.abi=arm64-v8a \
-            --no-daemon \
-            -x lintVitalFoss \
-            -x lintVitalReportFoss \
-            -x lintVitalAnalyzeFoss
-
-      - name: Build APK (use cached .so)
-        if: steps.cache-so.outputs.cache-hit == 'true'
-        run: |
-          export LOCAL_PROPERTIES="${{ env.LOCAL_PROPERTIES }}"
           export NATIVE_TARGET=arm64-v8a
           ./gradlew TMessagesProj:assembleFoss \
             -Pandroid.injected.build.abi=arm64-v8a \
