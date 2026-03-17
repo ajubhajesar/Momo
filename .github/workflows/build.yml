@@ -119,7 +119,7 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         run: ./run init libs boringssl
 
-  # ── Job 3: Compile .so + Build APK ────────────────────────────────────────
+  # ── Job 3: Build APK ────────────────────────────────────────────────────
   build:
     name: Build APK
     runs-on: ubuntu-latest
@@ -205,10 +205,9 @@ jobs:
         run: |
           sed -i 's/-Xmx8192M/-Xmx4096m/g; s/-XX:MaxMetaspaceSize=4096m/-XX:MaxMetaspaceSize=512m/g' gradle.properties
           export LOCAL_PROPERTIES="${{ env.LOCAL_PROPERTIES }}"
-          export COMPILE_NATIVE=true
+          # COMPILE_NATIVE intentionally NOT set — disables CMake (uses cached .so)
+          # NATIVE_TARGET=arm64-v8a — builds only arm64 split APK (skips x86/armeabi)
           export NATIVE_TARGET=arm64-v8a
-          # No -Pandroid.injected.build.abi — upstream never uses this flag
-          # It causes AGP to write APK into a split subdirectory, breaking find
           ./gradlew TMessagesProj:assembleRelease \
             --no-daemon \
             -x lintVitalFoss \
@@ -218,12 +217,8 @@ jobs:
       - name: Find APK
         run: |
           echo "All files in outputs/apk:"
-          find TMessagesProj/build/outputs/apk -type f 2>/dev/null || echo "outputs/apk missing"
-          APK=$(find TMessagesProj/build/outputs/apk -name '*arm64-v8a*.apk' | head -1)
-          if [ -z "$APK" ]; then
-            # fallback: any apk in release dir
-            APK=$(find TMessagesProj/build/outputs/apk -name '*.apk' | head -1)
-          fi
+          find TMessagesProj/build/outputs/apk -type f 2>/dev/null
+          APK=$(find TMessagesProj/build/outputs/apk -name '*.apk' | head -1)
           if [ -z "$APK" ]; then
             echo "##[error]No APK found!"
             exit 1

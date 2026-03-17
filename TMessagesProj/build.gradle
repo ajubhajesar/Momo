@@ -96,7 +96,7 @@ android {
     buildFeatures.aidl = true
     buildFeatures.buildConfig = true
 
-    defaultConfig.applicationId = APP_PACKAGE
+    defaultConfig.applicationId = "com.aj.momo"
 
 
     splits {
@@ -110,7 +110,13 @@ android {
             } else if (nativeTarget.toLowerCase().equals("universal")) {
                 enable false
                 universalApk true
-            } else if (!archs.contains(nativeTarget.toLowerCase())) {
+            } else if (archs.contains(nativeTarget.toLowerCase())) {
+                // single-ABI build — produce one APK for just this ABI
+                enable true
+                reset()
+                include nativeTarget.toLowerCase()
+                universalApk false
+            } else {
                 enable false
                 universalApk false
             }
@@ -146,7 +152,7 @@ android {
         buildConfigField "int", "APP_ID", appId
         buildConfigField "String", "APP_HASH", "\"" + appHash + "\""
         buildConfigField "int", "VERSION_NUM", "6"
-        resValue "string", "package_name", APP_PACKAGE
+        resValue "string", "package_name", "com.aj.momo"
 
 //        ndk {
 //            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
