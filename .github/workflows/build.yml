@@ -207,8 +207,9 @@ jobs:
           export LOCAL_PROPERTIES="${{ env.LOCAL_PROPERTIES }}"
           export COMPILE_NATIVE=true
           export NATIVE_TARGET=arm64-v8a
+          # No -Pandroid.injected.build.abi — upstream never uses this flag
+          # It causes AGP to write APK into a split subdirectory, breaking find
           ./gradlew TMessagesProj:assembleRelease \
-            -Pandroid.injected.build.abi=arm64-v8a \
             --no-daemon \
             -x lintVitalFoss \
             -x lintVitalReportFoss \
@@ -216,10 +217,19 @@ jobs:
 
       - name: Find APK
         run: |
-          echo "All APKs:"
-          find TMessagesProj/build/outputs -name "*.apk" 2>/dev/null || echo "none"
-          APK=$(find TMessagesProj/build/outputs -name "*.apk" | head -1)
-          echo "APK=$APK" >> $GITHUB_ENV
+          echo "All files in outputs/apk:"
+          find TMessagesProj/build/outputs/apk -type f 2>/dev/null || echo "outputs/apk missing"
+          APK=$(find TMessagesProj/build/outputs/apk -name '*arm64-v8a*.apk' | head -1)
+          if [ -z "$APK" ]; then
+            # fallback: any apk in release dir
+            APK=$(find TMessagesProj/build/outputs/apk -name '*.apk' | head -1)
+          fi
+          if [ -z "$APK" ]; then
+            echo "##[error]No APK found!"
+            exit 1
+          fi
+          cp "$APK" Momo.apk
+          echo "APK=Momo.apk" >> $GITHUB_ENV
           echo "Found: $APK"
 
       - name: Publish APK
