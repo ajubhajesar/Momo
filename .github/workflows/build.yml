@@ -205,8 +205,9 @@ jobs:
         run: |
           sed -i 's/-Xmx8192M/-Xmx4096m/g; s/-XX:MaxMetaspaceSize=4096m/-XX:MaxMetaspaceSize=512m/g' gradle.properties
           export LOCAL_PROPERTIES="${{ env.LOCAL_PROPERTIES }}"
-          # COMPILE_NATIVE intentionally NOT set — disables CMake (uses cached .so)
-          # NATIVE_TARGET=arm64-v8a — builds only arm64 split APK (skips x86/armeabi)
+          # COMPILE_NATIVE=true — enables CMake to build libtmessages.so
+          # NATIVE_TARGET=arm64-v8a — builds only arm64 (skips armeabi/x86/x86_64)
+          export COMPILE_NATIVE=true
           export NATIVE_TARGET=arm64-v8a
           ./gradlew TMessagesProj:assembleRelease \
             --no-daemon \
