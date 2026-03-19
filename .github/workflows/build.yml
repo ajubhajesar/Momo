@@ -189,6 +189,15 @@ jobs:
           done
           ./patch_ffmpeg.sh || true
 
+      # Cache the pre-built .so in src/main/libs (populated after first build)
+      # Key: only local JNI sources + submodule status (NOT submodule source trees)
+      - name: Cache libtmessages.so (arm64)
+        id: so-cache
+        uses: actions/cache@v4
+        with:
+          path: TMessagesProj/src/main/libs/arm64-v8a
+          key: libtmessages-arm64-v3-${{ hashFiles('TMessagesProj/jni/CMakeLists.txt', 'TMessagesProj/jni/*.cpp', 'TMessagesProj/jni/*.c', 'TMessagesProj/jni/*.h', 'TMessagesProj/jni/tgnet/**', 'TMessagesProj/jni/voip/**', 'TMessagesProj/jni/rlottie/**', 'TMessagesProj/jni/opus/**', 'TMessagesProj/jni/sqlite/**', 'TMessagesProj/jni/exoplayer/**', 'TMessagesProj/jni/mozjpeg/**', 'TMessagesProj/jni/intro/**', 'TMessagesProj/jni/tde2e/**', 'boringssl_status', 'ffmpeg_status') }}
+
       - name: Set up signing
         run: |
           base64 -d TMessagesProj/release.keystore.b64 > TMessagesProj/release.keystore
@@ -203,17 +212,45 @@ jobs:
 
       - name: Build APK
         run: |
-          sed -i 's/-Xmx8192M/-Xmx4096m/g; s/-XX:MaxMetaspaceSize=4096m/-XX:MaxMetaspaceSize=512m/g' gradle.properties
+          sed -i 's/-Xmx8192M/-Xmx6144m/g; s/-XX:MaxMetaspaceSize=4096m/-XX:MaxMetaspaceSize=1024m/g' gradle.properties
+          # Enable Gradle parallel execution and build cache
+          echo 'org.gradle.parallel=true' >> gradle.properties
+          echo 'org.gradle.caching=true' >> gradle.properties
+          echo 'org.gradle.configureondemand=true' >> gradle.properties
           export LOCAL_PROPERTIES="${{ env.LOCAL_PROPERTIES }}"
-          # COMPILE_NATIVE=true — enables CMake to build libtmessages.so
-          # NATIVE_TARGET=arm64-v8a — builds only arm64 (skips armeabi/x86/x86_64)
-          export COMPILE_NATIVE=true
           export NATIVE_TARGET=arm64-v8a
-          ./gradlew TMessagesProj:assembleRelease \
-            --no-daemon \
-            -x lintVitalFoss \
-            -x lintVitalReportFoss \
-            -x lintVitalAnalyzeFoss
+          if [ "${{ steps.so-cache.outputs.cache-hit }}" != "true" ]; then
+            echo ">>> .so cache MISS — compiling native (~25 min)"
+            export COMPILE_NATIVE=true
+            ./gradlew TMessagesProj:assembleRelease \
+              --no-daemon \
+              -x lintVitalFoss \
+              -x lintVitalReportFoss \
+              -x lintVitalAnalyzeFoss \
+              -x lintVitalAnalyzeRelease \
+              -x lintVitalReportRelease \
+              -x lintVitalRelease
+            # Copy freshly built .so to src/main/libs so cache can save it
+            SO_SRC="TMessagesProj/build/intermediates/stripped_native_libs/release/stripReleaseDebugSymbols/out/lib/arm64-v8a"
+            if [ -d "$SO_SRC" ]; then
+              mkdir -p TMessagesProj/src/main/libs/arm64-v8a
+              cp "$SO_SRC"/libtmessages*.so TMessagesProj/src/main/libs/arm64-v8a/
+              echo ">>> Copied .so to src/main/libs for caching"
+            else
+              echo ">>> Warning: stripped .so not found at $SO_SRC"
+              find TMessagesProj/build/intermediates -name "libtmessages*.so" 2>/dev/null | head -5
+            fi
+          else
+            echo ">>> .so cache HIT — skipping CMake (~5 min)"
+            ./gradlew TMessagesProj:assembleRelease \
+              --no-daemon \
+              -x lintVitalFoss \
+              -x lintVitalReportFoss \
+              -x lintVitalAnalyzeFoss \
+              -x lintVitalAnalyzeRelease \
+              -x lintVitalReportRelease \
+              -x lintVitalRelease
+          fi
 
       - name: Find APK
         run: |
