@@ -131,6 +131,7 @@ android {
 
         versionName verName
         versionCode verCode
+        resConfigs "en" // AJ: strip all non-English resources
 
         def appId = "1391584"
         def appHash = "355c91550b0d658cfb7ff89dcf91a08c"
@@ -221,8 +222,8 @@ android {
         release {
             debuggable false
             jniDebuggable false
-            minifyEnabled true
-            shrinkResources true
+            minifyEnabled false
+            shrinkResources false
             multiDexEnabled true
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro", '../TMessagesProj/proguard-rules-beta.pro'
             matchingFallbacks = ["release", "debug"]
@@ -232,8 +233,8 @@ android {
         foss {
             debuggable false
             jniDebuggable false
-            minifyEnabled true
-            shrinkResources true
+            minifyEnabled false
+            shrinkResources false
             multiDexEnabled true
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro", '../TMessagesProj/proguard-rules-beta.pro'
             matchingFallbacks = ["release", "debug"]
@@ -330,7 +331,7 @@ dependencies {
     implementation("androidx.mediarouter:mediarouter:1.7.0") {
         exclude group: 'androidx.recyclerview'
     }
-//    implementation 'org.nanohttpd:nanohttpd:2.3.1'
+    implementation 'org.nanohttpd:nanohttpd:2.3.1'
 
     compileOnly 'org.checkerframework:checker-qual:2.5.2'
     compileOnly 'org.checkerframework:checker-compat-qual:2.5.0'
