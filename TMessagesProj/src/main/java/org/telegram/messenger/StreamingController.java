@@ -69,8 +69,8 @@ public class StreamingController {
         videoTitle    = title != null ? title : "video";
         hasNext       = next;
         hasPrev       = prev;
-        nextListener  = onNext;
-        prevListener  = onPrev;
+        if (onNext != null) nextListener = onNext;
+        if (onPrev != null) prevListener = onPrev;
         updateNotification(title);
     }
 

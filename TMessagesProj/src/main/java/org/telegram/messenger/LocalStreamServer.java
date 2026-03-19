@@ -96,12 +96,11 @@ public class LocalStreamServer extends NanoHTTPD {
         long contentLength = end - start + 1;
         try {
             FileInputStream fis = new FileInputStream(file);
-            fis.skip(start);
+            fis.getChannel().position(start);
             Response r = newFixedLengthResponse(status, "video/mp4", fis, contentLength);
             r.addHeader("Accept-Ranges", "bytes");
             r.addHeader("Content-Range", "bytes " + start + "-" + end + "/" + fileSize);
             r.addHeader("Content-Disposition", "inline; filename=\"" + file.getName() + "\"");
-            r.addHeader("Cache-Control", "no-cache");
             return r;
         } catch (IOException e) {
             return newFixedLengthResponse(Response.Status.INTERNAL_ERROR, "text/plain", e.getMessage());
