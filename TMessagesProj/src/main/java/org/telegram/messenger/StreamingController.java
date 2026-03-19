@@ -56,7 +56,7 @@ public class StreamingController {
         if (server != null) { server.stop(); server = null; }
         try {
             server = new LocalStreamServer();
-            server.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false);
+            server.start(75000, false);
             showNotification(title);
         } catch (IOException e) {
             server = null;

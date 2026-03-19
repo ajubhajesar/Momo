@@ -9890,7 +9890,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
             if (currentMessageObject == null) return;
             java.io.File f = FileLoader.getInstance(currentAccount).getPathToMessage(currentMessageObject.messageOwner);
             if (f == null || !f.exists()) {
-                showSimpleAlert(null, "Video not downloaded yet");
+                android.widget.Toast.makeText(parentActivity, "Video not downloaded yet", android.widget.Toast.LENGTH_SHORT).show();
                 return;
             }
             String title = FileLoader.getAttachFileName(currentMessageObject.getDocument());
