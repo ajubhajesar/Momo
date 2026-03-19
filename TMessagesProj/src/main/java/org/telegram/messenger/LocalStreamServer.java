@@ -119,8 +119,10 @@ public class LocalStreamServer extends NanoHTTPD {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             bmp.compress(Bitmap.CompressFormat.JPEG, 75, baos);
             byte[] bytes = baos.toByteArray();
-            return newFixedLengthResponse(Response.Status.OK, "image/jpeg",
+            Response tr = newFixedLengthResponse(Response.Status.OK, "image/jpeg",
                 new ByteArrayInputStream(bytes), bytes.length);
+            tr.addHeader("Cache-Control", "max-age=10");
+            return tr;
         } catch (Exception e) {
             return newFixedLengthResponse(Response.Status.INTERNAL_ERROR, "text/plain", e.getMessage());
         }
@@ -292,9 +294,7 @@ public class LocalStreamServer extends NanoHTTPD {
         // Reload video source
         "function reload(){" +
         "  v.src='/video?t='+Date.now();" +
-        "  v.load();" +
-        "  v.play().catch(()=>{});" +
-        "  nthumb.src='/thumb?t='+Date.now();" +
+        "  nthumb.src='/thumb';" +
         "}" +
 
         // Connect - fires immediately, no lib dependency
@@ -322,14 +322,13 @@ public class LocalStreamServer extends NanoHTTPD {
         "    }" +
         "    updateUI(d);" +
         "  }catch(e){}" +
-        "  setTimeout(poll,2000);" +
+        "  setTimeout(poll,3000);" +
         "}" +
 
         // Update all UI from status
         "function updateUI(d){" +
         "  ntitle.textContent=d.title;" +
         "  nptitle.textContent=d.title;" +
-        "  nthumb.src='/thumb?t='+Date.now();" +
         "  if('mediaSession' in navigator)navigator.mediaSession.metadata=new MediaMetadata({title:d.title,artwork:[{src:'/thumb'}]});" +
         "  [pvb,pvc].forEach(el=>el.classList.toggle('dim',!d.hasPrev));" +
         "  [nxb,nxc].forEach(el=>el.classList.toggle('dim',!d.hasNext));" +

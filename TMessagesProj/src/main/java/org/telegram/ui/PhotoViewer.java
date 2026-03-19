@@ -849,6 +849,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
     private TextView doneButtonFullWidth;
     private ActionBarMenuItem menuItem;
     private ActionBarMenuItem videoItem;
+    private ActionBarMenuItem streamItem;
     private ActionBarMenuSubItem allMediaItem;
     private ActionBarMenuSubItem sendNoQuoteItem;
     private ActionBarMenuSlider.SpeedSlider speedItem;
@@ -1036,7 +1037,6 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
     private long lastSaveTime;
     private float seekToProgressPending2;
     private boolean streamingAlertShown;
-    private android.widget.FrameLayout videoToolbarLayout;
     private long startedPlayTime;
     private boolean keepScreenOnFlagSet;
     private VideoPlayerControlFrameLayout videoPlayerControlFrameLayout;
@@ -5950,6 +5950,47 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
         pipItem = menu.addItem(gallery_menu_pip, R.drawable.menu_video_pip);
         pipItem.setContentDescription(getString(R.string.PipMinimize));
 
+        streamItem = menu.addItem(0, R.drawable.baseline_wifi_24);
+        streamItem.setContentDescription("Stream to browser");
+        streamItem.setVisibility(View.GONE);
+        streamItem.setOnClickListener(v -> {
+            if (currentMessageObject == null) return;
+            java.io.File sf = FileLoader.getInstance(currentAccount).getPathToMessage(currentMessageObject.messageOwner);
+            if (sf == null || !sf.exists()) {
+                android.widget.Toast.makeText(parentActivity, "Video not downloaded yet", android.widget.Toast.LENGTH_SHORT).show();
+                return;
+            }
+            String stitle = FileLoader.getAttachFileName(currentMessageObject.getDocument());
+            org.telegram.messenger.StreamingController sc = org.telegram.messenger.StreamingController.getInstance();
+            if (sc.isStreaming()) {
+                String url = sc.getUrl();
+                android.content.ClipboardManager cm = (android.content.ClipboardManager)
+                    parentActivity.getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+                cm.setPrimaryClip(android.content.ClipData.newPlainText("url", url));
+                new AlertDialog.Builder(parentActivity, resourcesProvider)
+                    .setTitle("Streaming")
+                    .setMessage("Open in browser:\n\n" + url + "\n\n(Copied to clipboard)")
+                    .setPositiveButton("Stop", (d, w) -> sc.stopStreaming())
+                    .setNegativeButton("Keep", null)
+                    .show();
+            } else {
+                sc.startStreaming(parentActivity, sf, stitle,
+                    rightImage.hasImageSet(), leftImage.hasImageSet(),
+                    () -> AndroidUtilities.runOnUIThread(this::goToNext),
+                    () -> AndroidUtilities.runOnUIThread(this::goToPrev));
+                String url = sc.getUrl();
+                android.content.ClipboardManager cm2 = (android.content.ClipboardManager)
+                    parentActivity.getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+                cm2.setPrimaryClip(android.content.ClipData.newPlainText("url", url));
+                new AlertDialog.Builder(parentActivity, resourcesProvider)
+                    .setTitle("Stream started")
+                    .setMessage("Open in browser:\n\n" + url + "\n\n(Copied to clipboard)")
+                    .setPositiveButton("Stop", (d, w) -> sc.stopStreaming())
+                    .setNegativeButton("Keep streaming", null)
+                    .show();
+            }
+        });
+
         videoItem = menu.addItem(gallery_menu_quality, videoItemIcon = new ChooseQualityLayout.QualityIcon(activityContext, R.drawable.video_settings, new DarkThemeResourceProvider()));
         videoItemIcon.setCallback(videoItem.getIconView());
         videoItem.getPopupLayout().setSwipeBackForegroundColor(0xff222222);
@@ -9873,69 +9914,6 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
         videoPlayerTime.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         videoPlayerControlFrameLayout.addView(videoPlayerTime, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.RIGHT | Gravity.TOP, 0, 15, 12, 0));
 
-        // AJ: stream toolbar (stream button only for now)
-        videoToolbarLayout = new android.widget.FrameLayout(containerView.getContext());
-        android.widget.LinearLayout toolbarInner = new android.widget.LinearLayout(containerView.getContext());
-        toolbarInner.setOrientation(android.widget.LinearLayout.HORIZONTAL);
-        toolbarInner.setGravity(android.view.Gravity.CENTER_VERTICAL | android.view.Gravity.RIGHT);
-        videoToolbarLayout.addView(toolbarInner, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
-
-        // Stream button
-        android.widget.ImageView videoStreamBtn = new android.widget.ImageView(containerView.getContext());
-        videoStreamBtn.setImageResource(R.drawable.baseline_wifi_24);
-        videoStreamBtn.setColorFilter(new android.graphics.PorterDuffColorFilter(0xFFFFFFFF, android.graphics.PorterDuff.Mode.SRC_IN));
-        videoStreamBtn.setScaleType(android.widget.ImageView.ScaleType.CENTER);
-        videoStreamBtn.setAlpha(0.8f);
-        videoStreamBtn.setOnClickListener(v -> {
-            if (currentMessageObject == null) return;
-            java.io.File f = FileLoader.getInstance(currentAccount).getPathToMessage(currentMessageObject.messageOwner);
-            if (f == null || !f.exists()) {
-                android.widget.Toast.makeText(parentActivity, "Video not downloaded yet", android.widget.Toast.LENGTH_SHORT).show();
-                return;
-            }
-            String title = FileLoader.getAttachFileName(currentMessageObject.getDocument());
-            org.telegram.messenger.StreamingController sc = org.telegram.messenger.StreamingController.getInstance();
-            if (sc.isStreaming()) {
-                // Already streaming - just show URL
-                String url = sc.getUrl();
-                android.content.ClipboardManager cm = (android.content.ClipboardManager)
-                    parentActivity.getSystemService(android.content.Context.CLIPBOARD_SERVICE);
-                cm.setPrimaryClip(android.content.ClipData.newPlainText("url", url));
-                new AlertDialog.Builder(parentActivity, resourcesProvider)
-                    .setTitle("\uD83D\uDCE1 Streaming")
-                    .setMessage("Open on your browser:\n\n" + url + "\n\n(Copied to clipboard)")
-                    .setPositiveButton("Stop", (d, w) -> sc.stopStreaming())
-                    .setNegativeButton("Keep", null)
-                    .show();
-            } else {
-                sc.startStreaming(parentActivity, f, title,
-                    rightImage.hasImageSet(), leftImage.hasImageSet(),
-                    () -> {
-                        // next
-                        if (rightImage.hasImageSet()) containerView.post(() -> {
-                            // swipe to next - simulate by calling changeToImage
-                        });
-                    },
-                    () -> {
-                        // prev
-                        if (leftImage.hasImageSet()) containerView.post(() -> {
-                        });
-                    });
-                String url = sc.getUrl();
-                android.content.ClipboardManager cm = (android.content.ClipboardManager)
-                    parentActivity.getSystemService(android.content.Context.CLIPBOARD_SERVICE);
-                cm.setPrimaryClip(android.content.ClipData.newPlainText("url", url));
-                new AlertDialog.Builder(parentActivity, resourcesProvider)
-                    .setTitle("\uD83D\uDCE1 Stream started")
-                    .setMessage("Open on your browser:\n\n" + url + "\n\n(Copied to clipboard)")
-                    .setPositiveButton("Stop", (d, w) -> sc.stopStreaming())
-                    .setNegativeButton("Keep streaming", null)
-                    .show();
-            }
-        });
-        toolbarInner.addView(videoStreamBtn, LayoutHelper.createLinear(44, 44));
-        videoPlayerControlFrameLayout.addView(videoToolbarLayout, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 48, android.view.Gravity.BOTTOM | android.view.Gravity.LEFT));
-
         exitFullscreenButton = new ImageView(containerView.getContext());
         exitFullscreenButton.setImageResource(R.drawable.msg_minvideo);
         exitFullscreenButton.setContentDescription(getString(R.string.AccExitFullscreen));
@@ -10965,7 +10943,6 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
             } else {
                 videoPlayer.preparePlayer(uri, "other");
             }
-            // AJ: update streaming controller if active
             if (org.telegram.messenger.StreamingController.getInstance().isStreaming() && currentMessageObject != null) {
                 java.io.File sf = FileLoader.getInstance(currentAccount).getPathToMessage(currentMessageObject.messageOwner);
                 String st = FileLoader.getAttachFileName(currentMessageObject.getDocument());
@@ -15799,11 +15776,13 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
             if (isVideo || isEmbedVideo) {
                 speedItem.setVisibility(View.VISIBLE);
                 videoItem.setVisibility(View.VISIBLE);
+                streamItem.setVisibility(View.VISIBLE);
                 menuItem.showSubItem(gallery_menu_speed);
                 speedGap.setVisibility(menuItem.getVisibleSubItemsCount() > 1 ? View.VISIBLE : View.GONE);
             } else {
                 speedItem.setVisibility(View.GONE);
                 videoItem.setVisibility(View.GONE);
+                streamItem.setVisibility(View.GONE);
                 speedGap.setVisibility(View.GONE);
                 menuItem.checkHideMenuItem();
             }
