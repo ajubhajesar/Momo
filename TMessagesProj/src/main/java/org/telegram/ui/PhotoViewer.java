@@ -5957,8 +5957,13 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
             if (currentMessageObject == null) return;
             java.io.File sf = FileLoader.getInstance(currentAccount).getPathToMessage(currentMessageObject.messageOwner);
             if (sf == null || !sf.exists()) {
-                android.widget.Toast.makeText(parentActivity, "Video not downloaded yet", android.widget.Toast.LENGTH_SHORT).show();
-                return;
+                // try partial/cache file for still-downloading videos
+                String fn = FileLoader.getAttachFileName(currentMessageObject.getDocument());
+                sf = new java.io.File(FileLoader.getDirectory(FileLoader.MEDIA_DIR_CACHE), fn);
+                if (!sf.exists()) {
+                    android.widget.Toast.makeText(parentActivity, "Video not downloaded yet", android.widget.Toast.LENGTH_SHORT).show();
+                    return;
+                }
             }
             String stitle = FileLoader.getAttachFileName(currentMessageObject.getDocument());
             org.telegram.messenger.StreamingController sc = org.telegram.messenger.StreamingController.getInstance();
@@ -6265,11 +6270,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 }
                 WindowManager manager = (WindowManager) parentActivity.getSystemService(Activity.WINDOW_SERVICE);
                 int displayRotation = manager.getDefaultDisplay().getRotation();
-                if (displayRotation == Surface.ROTATION_270) {
-                    parentActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE);
-                } else {
-                    parentActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
-                }
+                parentActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_USER_LANDSCAPE);
                 toggleActionBar(false, false);
             });
         }
@@ -19301,6 +19302,10 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
     }
 
     private void goToNext() {
+        if (aspectRatioFrameLayout != null && aspectRatioFrameLayout.getVisibility() == View.VISIBLE) {
+            switchToNextIndex(1, false);
+            return;
+        }
         float extra = 0;
         if (scale != 1) {
             extra = (getContainerViewWidth() - centerImage.getImageWidth()) / 2 * scale;
@@ -19310,6 +19315,10 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
     }
 
     private void goToPrev() {
+        if (aspectRatioFrameLayout != null && aspectRatioFrameLayout.getVisibility() == View.VISIBLE) {
+            switchToNextIndex(-1, false);
+            return;
+        }
         float extra = 0;
         if (scale != 1) {
             extra = (getContainerViewWidth() - centerImage.getImageWidth()) / 2 * scale;

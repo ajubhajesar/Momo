@@ -97,7 +97,9 @@ public class LocalStreamServer extends NanoHTTPD {
         try {
             FileInputStream fis = new FileInputStream(file);
             fis.getChannel().position(start);
-            Response r = newFixedLengthResponse(status, "video/mp4", fis, contentLength);
+            java.io.BufferedInputStream bis = new java.io.BufferedInputStream(fis, 256 * 1024);
+            String mime = file.getName().endsWith(".mkv") ? "video/x-matroska" : "video/mp4";
+            Response r = newFixedLengthResponse(status, mime, bis, contentLength);
             r.addHeader("Accept-Ranges", "bytes");
             r.addHeader("Content-Range", "bytes " + start + "-" + end + "/" + fileSize);
             r.addHeader("Content-Disposition", "inline; filename=\"" + file.getName() + "\"");
