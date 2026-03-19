@@ -5955,18 +5955,9 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
         streamItem.setVisibility(View.GONE);
         streamItem.setOnClickListener(v -> {
             if (currentMessageObject == null) return;
-            java.io.File sf = FileLoader.getInstance(currentAccount).getPathToMessage(currentMessageObject.messageOwner);
-            if (sf == null || !sf.exists()) {
-                // try partial/cache file for still-downloading videos
-                String fn = FileLoader.getAttachFileName(currentMessageObject.getDocument());
-                sf = new java.io.File(FileLoader.getDirectory(FileLoader.MEDIA_DIR_CACHE), fn);
-                if (!sf.exists()) {
-                    android.widget.Toast.makeText(parentActivity, "Video not downloaded yet", android.widget.Toast.LENGTH_SHORT).show();
-                    return;
-                }
-            }
-            String stitle = FileLoader.getAttachFileName(currentMessageObject.getDocument());
             org.telegram.messenger.StreamingController sc = org.telegram.messenger.StreamingController.getInstance();
+
+            // If already streaming - show status dialog
             if (sc.isStreaming()) {
                 String url = sc.getUrl();
                 android.content.ClipboardManager cm = (android.content.ClipboardManager)
@@ -5978,22 +5969,58 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                     .setPositiveButton("Stop", (d, w) -> sc.stopStreaming())
                     .setNegativeButton("Keep", null)
                     .show();
-            } else {
-                sc.startStreaming(parentActivity, sf, stitle,
-                    rightImage.hasImageSet(), leftImage.hasImageSet(),
-                    () -> AndroidUtilities.runOnUIThread(this::goToNext),
-                    () -> AndroidUtilities.runOnUIThread(this::goToPrev));
-                String url = sc.getUrl();
-                android.content.ClipboardManager cm2 = (android.content.ClipboardManager)
-                    parentActivity.getSystemService(android.content.Context.CLIPBOARD_SERVICE);
-                cm2.setPrimaryClip(android.content.ClipData.newPlainText("url", url));
-                new AlertDialog.Builder(parentActivity, resourcesProvider)
-                    .setTitle("Stream started")
-                    .setMessage("Open in browser:\n\n" + url + "\n\n(Copied to clipboard)")
-                    .setPositiveButton("Stop", (d, w) -> sc.stopStreaming())
-                    .setNegativeButton("Keep streaming", null)
-                    .show();
+                return;
             }
+
+            // Resolve file - try completed then partial cache
+            java.io.File sf = FileLoader.getInstance(currentAccount).getPathToMessage(currentMessageObject.messageOwner);
+            String fn = FileLoader.getAttachFileName(currentMessageObject.getDocument());
+            if (sf == null || !sf.exists()) {
+                sf = new java.io.File(FileLoader.getDirectory(FileLoader.MEDIA_DIR_CACHE), fn);
+                if (!sf.exists()) {
+                    android.widget.Toast.makeText(parentActivity, "Video not yet downloaded", android.widget.Toast.LENGTH_SHORT).show();
+                    return;
+                }
+            }
+
+            // Pause phone video and save position
+            final long savedPos = videoPlayer != null ? videoPlayer.getCurrentPosition() : 0;
+            pauseVideoOrWeb();
+
+            long dur = videoPlayer != null && videoPlayer.getDuration() > 0
+                ? videoPlayer.getDuration()
+                : (long)(currentMessageObject.getDuration() * 1000L);
+
+            final java.io.File finalSf = sf;
+            final String finalFn = fn;
+
+            sc.startStreaming(parentActivity, sf, currentMessageObject.getDocument() != null
+                    ? currentMessageObject.getDocument().file_name : fn,
+                dur,
+                rightImage.hasImageSet(), leftImage.hasImageSet(),
+                currentVideoSpeed, fn, currentAccount,
+                () -> AndroidUtilities.runOnUIThread(this::goToNext),
+                () -> AndroidUtilities.runOnUIThread(this::goToPrev),
+                posMs -> { /* download priority handled inside StreamingController */ },
+                () -> {
+                    // Stop: resume phone from browser position
+                    long resumePos = sc.position > 0 ? sc.position : savedPos;
+                    if (videoPlayer != null) {
+                        videoPlayer.seekTo(resumePos);
+                    }
+                    playVideoOrWeb();
+                });
+
+            String url = sc.getUrl();
+            android.content.ClipboardManager cm2 = (android.content.ClipboardManager)
+                parentActivity.getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+            cm2.setPrimaryClip(android.content.ClipData.newPlainText("url", url));
+            new AlertDialog.Builder(parentActivity, resourcesProvider)
+                .setTitle("Stream started")
+                .setMessage("Open in browser:\n\n" + url + "\n\n(Copied to clipboard)")
+                .setPositiveButton("Stop", (d, w) -> sc.stopStreaming())
+                .setNegativeButton("Keep streaming", null)
+                .show();
         });
 
         videoItem = menu.addItem(gallery_menu_quality, videoItemIcon = new ChooseQualityLayout.QualityIcon(activityContext, R.drawable.video_settings, new DarkThemeResourceProvider()));
@@ -10947,8 +10974,15 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
             if (org.telegram.messenger.StreamingController.getInstance().isStreaming() && currentMessageObject != null) {
                 java.io.File sf = FileLoader.getInstance(currentAccount).getPathToMessage(currentMessageObject.messageOwner);
                 String st = FileLoader.getAttachFileName(currentMessageObject.getDocument());
-                org.telegram.messenger.StreamingController.getInstance().updateVideo(sf, st,
-                    rightImage.hasImageSet(), leftImage.hasImageSet(), null, null);
+                String fn2 = FileLoader.getAttachFileName(currentMessageObject.getDocument());
+                long dur2 = videoPlayer != null && videoPlayer.getDuration() > 0
+                    ? videoPlayer.getDuration()
+                    : (long)(currentMessageObject.getDuration() * 1000L);
+                org.telegram.messenger.StreamingController.getInstance().updateVideo(sf, st, dur2,
+                    rightImage.hasImageSet(), leftImage.hasImageSet(), currentVideoSpeed, fn2,
+                    () -> AndroidUtilities.runOnUIThread(this::goToNext),
+                    () -> AndroidUtilities.runOnUIThread(this::goToPrev),
+                    null, null);
             }
             updateQualityItems();
             videoPlayer.setPlayWhenReady(playWhenReady);
@@ -14261,7 +14295,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
 
         if (messageObject != null) {
             SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("playback_speed", Activity.MODE_PRIVATE);
-            currentVideoSpeed = preferences.getFloat("speed" + messageObject.getDialogId() + "_" + messageObject.getId(), 1.0f);
+            currentVideoSpeed = preferences.getFloat("global_speed", 1.0f);
         } else {
             currentVideoSpeed = 1.0f;
         }
@@ -23040,13 +23074,11 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
     private void chooseSpeed(float speed, boolean isFinal, boolean closeMenu) {
         if (speed != currentVideoSpeed) {
             currentVideoSpeed = speed;
-            if (currentMessageObject != null) {
-                SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("playback_speed", Activity.MODE_PRIVATE);
-                if (Math.abs(currentVideoSpeed - 1.0f) < 0.001f) {
-                    preferences.edit().remove("speed" + currentMessageObject.getDialogId() + "_" + currentMessageObject.getId()).commit();
-                } else {
-                    preferences.edit().putFloat("speed" + currentMessageObject.getDialogId() + "_" + currentMessageObject.getId(), currentVideoSpeed).commit();
-                }
+            SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("playback_speed", Activity.MODE_PRIVATE);
+            if (Math.abs(currentVideoSpeed - 1.0f) < 0.001f) {
+                preferences.edit().remove("global_speed").commit();
+            } else {
+                preferences.edit().putFloat("global_speed", currentVideoSpeed).commit();
             }
             if (videoPlayer != null) {
                 videoPlayer.setPlaybackSpeed(currentVideoSpeed);

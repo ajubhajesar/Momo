@@ -781,6 +781,15 @@ public class FileLoader extends BaseController {
         }
     }
 
+    // AJ: tell downloader to prioritize a specific byte offset (for browser seek)
+    public void setStreamPriorityOffset(final String fileName, final long byteOffset) {
+        if (TextUtils.isEmpty(fileName)) return;
+        FileLoadOperation op = loadOperationPaths.get(fileName);
+        if (op != null) {
+            op.setStream(null, true, byteOffset);
+        }
+    }
+
     public File getLocalFile(ImageLocation imageLocation) {
         if (imageLocation == null) return null;
         String fileName;
