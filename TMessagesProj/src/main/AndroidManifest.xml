@@ -1127,6 +1127,12 @@
 
         <receiver android:name=".CustomTabsCopyReceiver" android:enabled="true" android:exported="false"/>
 
+        <receiver android:name=".messenger.StreamingController$Receiver" android:exported="false">
+            <intent-filter>
+                <action android:name="com.telegram.STREAM_STOP"/>
+            </intent-filter>
+        </receiver>
+
         <receiver android:name=".NotificationDismissReceiver" android:exported="false"/>
 
         <receiver android:name=".voip.VoIPActionsReceiver" android:exported="false"/>
