@@ -37,7 +37,7 @@ public class LocalStreamServer extends NanoHTTPD {
                     buffered = (long)(prog * sc.duration);
                 }
                 String json = String.format(
-                    "{\"title\":\"%s\",\"hasNext\":%b,\"hasPrev\":%b,\"duration\":%d,\"position\":%d,\"buffered\":%d,\"speed\":%.2f}",
+                    "{\"title\":\"%s\",\"hasNext\":%b,\"hasPrev\":%b,\"duration\":%d,\"position\":%d,\"buffered\":%d,\"speed\":%.2f,\"version\":%d}",
                     escapeJson(sc.videoTitle), sc.hasNext, sc.hasPrev,
                     sc.duration, sc.position, buffered, sc.speed, sc.version);
                 return jsonOK(json);
