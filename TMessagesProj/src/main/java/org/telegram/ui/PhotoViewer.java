@@ -6011,6 +6011,8 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                     }
                     playVideoOrWeb();
                 });
+            // AJ: startStreaming resets position=0; restore so browser seeks to phone's position
+            sc.position = savedPos;
 
             String url = sc.getUrl();
             android.content.ClipboardManager cm2 = (android.content.ClipboardManager)
@@ -10997,11 +10999,12 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 sc2.prevListener = () -> AndroidUtilities.runOnUIThread(this::goToPrev);
                 sc2.position = 0;
                 sc2.version++;
-                // keep phone paused while streaming
-                pauseVideoOrWeb();
             }
             updateQualityItems();
-            videoPlayer.setPlayWhenReady(playWhenReady);
+            // AJ: when streaming, phone must stay paused — browser is the player
+            boolean _pwr = org.telegram.messenger.StreamingController.getInstance().isStreaming()
+                ? false : playWhenReady;
+            videoPlayer.setPlayWhenReady(_pwr);
             if (pipSource != null) {
                 pipSource.setPlayer(videoPlayer.player);
                 if (videoPlayer.player != null) {
@@ -19485,14 +19488,12 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
         }
         playerAutoStarted = false;
         setImageIndex(currentIndex + add, init, true);
-        // AJ: if streaming and a video is current, always trigger preparePlayer so
-        //     sc.videoFile / sc.videoTitle etc. get updated for the new track.
-        //     preparePlayer's streaming block calls pauseVideoOrWeb() so phone stays paused.
-        //     If not streaming, only autoplay per normal rules.
+        // AJ: when streaming, trigger preparePlayer so sc.videoFile/title update for
+        //     the new video. Pass playWhenReady=false — phone stays paused, browser plays.
         org.telegram.messenger.StreamingController _sc = org.telegram.messenger.StreamingController.getInstance();
         if (_sc.isStreaming() && currentMessageObject != null && currentMessageObject.isVideo()) {
             playerAutoStarted = true;
-            onActionClick(true);
+            onActionClick(false);   // false = don't autoplay on phone
             checkProgress(0, false, true);
         } else if (!_sc.isStreaming()) {
             if (shouldMessageObjectAutoPlayed(currentMessageObject) || shouldIndexAutoPlayed(currentIndex)) {
