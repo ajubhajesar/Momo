@@ -237,8 +237,6 @@ public class LocalStreamServer extends NanoHTTPD {
         "const pvb=document.getElementById('pvb'),nxb=document.getElementById('nxb');" +
         "const pvc=document.getElementById('pvc'),nxc=document.getElementById('nxc');" +
         "let lastTitle='',totalDur=0,dragging=false,curSpeed=2,userSpeed=false,userSpeedTimer=null;" +
-
-        // Speed buttons
         "const SPEEDS=[0.25,0.5,0.75,1,1.25,1.5,1.75,2,2.5,3];" +
         "const spdDiv=document.getElementById('speeds');" +
         "SPEEDS.forEach(s=>{" +
@@ -253,8 +251,6 @@ public class LocalStreamServer extends NanoHTTPD {
         "});" +
 
         "function fmt(ms){if(!ms||ms<0)return'0:00';const s=Math.floor(ms/1000),m=Math.floor(s/60),sec=s%60;return m+':'+(sec<10?'0':'')+sec;}" +
-
-
         "if('mediaSession' in navigator){" +
         "  navigator.mediaSession.setActionHandler('previoustrack',prevVideo);" +
         "  navigator.mediaSession.setActionHandler('nexttrack',nextVideo);" +
@@ -286,7 +282,6 @@ public class LocalStreamServer extends NanoHTTPD {
 
         "function prevVideo(){cmd('prev');}" +
         "function nextVideo(){cmd('next');}" +
-
         "var reloadPos=0;" +
         "function reload(seekMs){" +
         "  reloadPos=seekMs||0;" +
@@ -299,8 +294,7 @@ public class LocalStreamServer extends NanoHTTPD {
         "    v.playbackRate=curSpeed;" +
         "    v.play().catch(()=>{});" +
         "  });" +
-        "}" +
-
+        "}"+
         "async function connect(){" +
         "  try{" +
         "    const r=await fetch('/status',{cache:'no-store'});" +
