@@ -164,7 +164,7 @@ public class LocalStreamServer extends NanoHTTPD {
         "@keyframes spin{to{transform:rotate(360deg)}}" +
         "#ov p{color:#9ca3af;font-size:15px;text-align:center;max-width:280px;line-height:1.5}" +
         "#vw{background:#000;width:100%;position:relative}" +
-        "video{width:100%;display:block;max-height:56vw}" +
+        "video{width:100%;display:block;aspect-ratio:16/9;object-fit:contain;background:#000}" +
         "@media(orientation:landscape){#vw{flex:1}video{max-height:100vh}}" +
         ".controls{background:#0d1117;border-bottom:1px solid #1f2937;padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}" +
         ".seekwrap{width:100%;display:flex;align-items:center;gap:8px;margin-bottom:4px}" +
@@ -202,7 +202,7 @@ public class LocalStreamServer extends NanoHTTPD {
         "</style></head><body>" +
         "<div id='ov'><div class='spinner'></div><p id='om'>Connecting to phone…</p></div>" +
         "<nav><div class='nav-logo'>📡 <span>Momogram</span></div><span class='nav-title' id='ntitle'></span></nav>" +
-        "<div id='vw'><video id='v' playsinline controls preload='auto'></video></div>" +
+        "<div id='vw'><video id='v' playsinline preload='auto'></video></div>" +
         "<div class='controls'>" +
         "  <div class='seekwrap'>" +
         "    <span class='time' id='cur'>0:00</span>" +
@@ -327,7 +327,13 @@ public class LocalStreamServer extends NanoHTTPD {
         "  v.src='/video?t='+Date.now();" +
         "  nthumb.src='/thumb?t='+Date.now();" +
         "  v.load();" +
-        "  v.play().catch(()=>{});" +
+        "  v.addEventListener('canplay',function oncp(){" +
+        "    v.removeEventListener('canplay',oncp);" +
+        "    if(v.currentTime<1&&seekbar.value>0&&totalDur>0)" +
+        "      v.currentTime=parseInt(seekbar.value)/1000*totalDur/1000;" +
+        "    v.playbackRate=curSpeed;" +
+        "    v.play().catch(()=>{});" +
+        "  });" +
         "}" +
 
         "async function connect(){" +
