@@ -167,11 +167,7 @@ public class LocalStreamServer extends NanoHTTPD {
         "video{width:100%;display:block;aspect-ratio:16/9;object-fit:contain;background:#000}" +
         "@media(orientation:landscape){#vw{flex:1}video{max-height:100vh}}" +
         ".controls{background:#0d1117;border-bottom:1px solid #1f2937;padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}" +
-        ".seekwrap{width:100%;display:flex;align-items:center;gap:8px;margin-bottom:4px}" +
-        "#seekbar{flex:1;-webkit-appearance:none;appearance:none;height:4px;border-radius:2px;outline:none;cursor:pointer;background:linear-gradient(to right,#3b82f6 0%,#3b82f6 var(--prog,0%),#1e3a5f var(--prog,0%),#1e3a5f var(--buf,0%),#374151 var(--buf,0%),#374151 100%)}" +
-        "#seekbar::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#fff;cursor:pointer}" +
-        "#seekbar::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#fff;border:none;cursor:pointer}" +
-        ".time{font-size:11px;color:#6b7280;white-space:nowrap}" +
+        
         ".btn{padding:8px 14px;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;display:inline-flex;align-items:center;gap:6px;transition:all 0.15s;-webkit-tap-highlight-color:transparent}" +
         ".btn-primary{background:#3b82f6;color:#fff}.btn-primary:hover{background:#2563eb}" +
         ".btn-ghost{background:#1f2937;color:#e5e7eb;border:1px solid #374151}.btn-ghost:hover{background:#374151}" +
@@ -202,13 +198,9 @@ public class LocalStreamServer extends NanoHTTPD {
         "</style></head><body>" +
         "<div id='ov'><div class='spinner'></div><p id='om'>Connecting to phone…</p></div>" +
         "<nav><div class='nav-logo'>📡 <span>Momogram</span></div><span class='nav-title' id='ntitle'></span></nav>" +
-        "<div id='vw'><video id='v' playsinline preload='auto'></video></div>" +
+        "<div id='vw'><video id='v' playsinline controls preload='auto'></video></div>" +
         "<div class='controls'>" +
-        "  <div class='seekwrap'>" +
-        "    <span class='time' id='cur'>0:00</span>" +
-        "    <input id='seekbar' type='range' min='0' max='1000' value='0'>" +
-        "    <span class='time' id='dur'>0:00</span>" +
-        "  </div>" +
+        
         "  <button class='btn btn-ghost dim' id='pvb' onclick='prevVideo()'>" +
         "    <svg viewBox='0 0 24 24'><path d='M6 6h2v12H6zm3.5 6 8.5 6V6z'/></svg>Prev" +
         "  </button>" +
@@ -220,9 +212,7 @@ public class LocalStreamServer extends NanoHTTPD {
         "  <button class='btn btn-danger' onclick='stopStream()' style='background:#dc2626;color:#fff;border:none;margin-right:4px'>" +
         "    <svg viewBox='0 0 24 24'><path d='M6 6h12v12H6z'/></svg>Stop" +
         "  </button>" +
-        "  <button class='btn btn-ghost' onclick='toggleFS()'>" +
-        "    <svg viewBox='0 0 24 24'><path d='M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z'/></svg>" +
-        "  </button>" +
+        
         "</div>" +
         "<div class='now-playing'>" +
         "  <div class='section-label'>Now Playing</div>" +
@@ -246,16 +236,14 @@ public class LocalStreamServer extends NanoHTTPD {
         "const nthumb=document.getElementById('nthumb');" +
         "const pvb=document.getElementById('pvb'),nxb=document.getElementById('nxb');" +
         "const pvc=document.getElementById('pvc'),nxc=document.getElementById('nxc');" +
-        "const seekbar=document.getElementById('seekbar');" +
-        "const curEl=document.getElementById('cur'),durEl=document.getElementById('dur');" +
-        "let lastTitle='',totalDur=0,dragging=false,curSpeed=1,userSpeed=false,userSpeedTimer=null;" +
+                        "let lastTitle='',totalDur=0,dragging=false,curSpeed=2,userSpeed=false,userSpeedTimer=null;" +
 
         // Speed buttons
         "const SPEEDS=[0.25,0.5,0.75,1,1.25,1.5,1.75,2,2.5,3];" +
         "const spdDiv=document.getElementById('speeds');" +
         "SPEEDS.forEach(s=>{" +
         "  const b=document.createElement('button');" +
-        "  b.className='spd'+(s===1?' active':'');" +
+        "  b.className='spd'+(s===2?' active':'');" +
         "  b.textContent=s+'x';" +
         "  b.onclick=()=>{v.playbackRate=s;curSpeed=s;userSpeed=true;" +
         "    clearTimeout(userSpeedTimer);userSpeedTimer=setTimeout(()=>userSpeed=false,10000);" +
@@ -267,35 +255,8 @@ public class LocalStreamServer extends NanoHTTPD {
         "function fmt(ms){if(!ms||ms<0)return'0:00';const s=Math.floor(ms/1000),m=Math.floor(s/60),sec=s%60;return m+':'+(sec<10?'0':'')+sec;}" +
 
         // Seekbar
-        "seekbar.addEventListener('mousedown',()=>dragging=true);" +
-        "seekbar.addEventListener('touchstart',()=>dragging=true,{passive:true});" +
-        "seekbar.addEventListener('input',()=>{if(!totalDur)return;const ms=parseInt(seekbar.value)/1000*totalDur;curEl.textContent=fmt(ms);});" +
-        "seekbar.addEventListener('change',()=>{" +
-        "  dragging=false;" +
-        "  if(!totalDur)return;" +
-        "  const ms=parseInt(seekbar.value)/1000*totalDur;" +
-        "  v.currentTime=ms/1000;" +
-        "  cmd('seek',ms);" +
-        "});" +
-
-        // Update seekbar from video progress
-        "v.addEventListener('timeupdate',()=>{" +
-        "  if(dragging||!totalDur)return;" +
-        "  const ms=v.currentTime*1000;" +
-        "  seekbar.value=Math.round(ms/totalDur*1000);" +
-        "  curEl.textContent=fmt(ms);" +
-        "  if(!v._lastReport||Date.now()-v._lastReport>5000){v._lastReport=Date.now();cmd('updatepos',Math.round(ms));}" +
-        "});" +
-
-        "function toggleFS(){" +
-        "  const el=document.documentElement;" +
-        "  if(!document.fullscreenElement&&!document.webkitFullscreenElement){" +
-        "    (el.requestFullscreen||el.webkitRequestFullscreen).call(el);" +
-        "    if(screen.orientation&&screen.orientation.lock)screen.orientation.lock('landscape').catch(()=>{});" +
-        "  }else{" +
-        "    (document.exitFullscreen||document.webkitExitFullscreen).call(document);" +
-        "  }" +
-        "}" +
+                                
+                "}" +
 
         "if('mediaSession' in navigator){" +
         "  navigator.mediaSession.setActionHandler('previoustrack',prevVideo);" +
@@ -307,9 +268,7 @@ public class LocalStreamServer extends NanoHTTPD {
         "  else if(e.code==='KeyN')nextVideo();" +
         "  else if(e.code==='KeyP')prevVideo();" +
         "  else if(e.code==='Space'){e.preventDefault();v.paused?v.play():v.pause();}" +
-        "  else if(e.code==='ArrowLeft'){e.preventDefault();v.currentTime=Math.max(0,v.currentTime-10);cmd('seek',v.currentTime*1000);}" +
-        "  else if(e.code==='ArrowRight'){e.preventDefault();v.currentTime+=10;cmd('seek',v.currentTime*1000);}" +
-        "});" +
+                        "});" +
 
         "async function stopStream(){" +
         "  await cmd('updatepos',Math.round(v.currentTime*1000));" +
@@ -329,8 +288,6 @@ public class LocalStreamServer extends NanoHTTPD {
         "  v.load();" +
         "  v.addEventListener('canplay',function oncp(){" +
         "    v.removeEventListener('canplay',oncp);" +
-        "    if(v.currentTime<1&&seekbar.value>0&&totalDur>0)" +
-        "      v.currentTime=parseInt(seekbar.value)/1000*totalDur/1000;" +
         "    v.playbackRate=curSpeed;" +
         "    v.play().catch(()=>{});" +
         "  });" +
@@ -363,15 +320,6 @@ public class LocalStreamServer extends NanoHTTPD {
         "  ntitle.textContent=d.title;" +
         "  nptitle.textContent=d.title;" +
         "  totalDur=d.duration||0;" +
-        "  durEl.textContent=fmt(totalDur);" +
-        // Update buffered progress on seekbar
-        "  if(totalDur>0){" +
-        "    const bufPct=(d.buffered/totalDur*100).toFixed(1)+'%';" +
-        "    const progPct=(v.currentTime*1000/totalDur*100).toFixed(1)+'%';" +
-        "    seekbar.style.setProperty('--buf',bufPct);" +
-        "    seekbar.style.setProperty('--prog',progPct);" +
-        "  }" +
-        // Sync speed from phone
         "  if(!userSpeed&&Math.abs(d.speed-curSpeed)>0.01){" +
         "    curSpeed=d.speed;v.playbackRate=d.speed;" +
         "    document.querySelectorAll('.spd').forEach(x=>x.classList.toggle('active',parseFloat(x.textContent)===d.speed));" +
