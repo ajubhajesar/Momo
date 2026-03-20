@@ -19351,7 +19351,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
     }
 
     private void goToNext() {
-        // AJ: if streaming, always use direct switch regardless of fullscreen state
+        // AJ: streaming check first - works regardless of fullscreen state
         org.telegram.messenger.StreamingController sc = org.telegram.messenger.StreamingController.getInstance();
         if (sc.isStreaming()) {
             sc.version++;
@@ -19361,7 +19361,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                     sc.hasNext = rightImage.hasImageSet();
                     sc.hasPrev = leftImage.hasImageSet();
                 }
-            }, 300);
+            }, 1500);
             return;
         }
         if (aspectRatioFrameLayout != null && aspectRatioFrameLayout.getVisibility() == View.VISIBLE) {
@@ -19377,7 +19377,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
     }
 
     private void goToPrev() {
-        // AJ: if streaming, always use direct switch regardless of fullscreen state
+        // AJ: streaming check first - works regardless of fullscreen state
         org.telegram.messenger.StreamingController sc = org.telegram.messenger.StreamingController.getInstance();
         if (sc.isStreaming()) {
             sc.version++;
@@ -19387,7 +19387,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                     sc.hasNext = rightImage.hasImageSet();
                     sc.hasPrev = leftImage.hasImageSet();
                 }
-            }, 300);
+            }, 1500);
             return;
         }
         if (aspectRatioFrameLayout != null && aspectRatioFrameLayout.getVisibility() == View.VISIBLE) {
