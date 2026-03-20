@@ -19351,10 +19351,10 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
     }
 
     private void goToNext() {
-        if (aspectRatioFrameLayout != null && aspectRatioFrameLayout.getVisibility() == View.VISIBLE) {
-            // AJ: bump version immediately so browser reloads without waiting for preparePlayer
-            org.telegram.messenger.StreamingController sc = org.telegram.messenger.StreamingController.getInstance();
-            if (sc.isStreaming()) sc.version++;
+        // AJ: if streaming, always use direct switch regardless of fullscreen state
+        org.telegram.messenger.StreamingController sc = org.telegram.messenger.StreamingController.getInstance();
+        if (sc.isStreaming()) {
+            sc.version++;
             switchToNextIndex(1, false);
             AndroidUtilities.runOnUIThread(() -> {
                 if (sc.isStreaming()) {
@@ -19362,6 +19362,10 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                     sc.hasPrev = leftImage.hasImageSet();
                 }
             }, 300);
+            return;
+        }
+        if (aspectRatioFrameLayout != null && aspectRatioFrameLayout.getVisibility() == View.VISIBLE) {
+            switchToNextIndex(1, false);
             return;
         }
         float extra = 0;
@@ -19373,10 +19377,10 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
     }
 
     private void goToPrev() {
-        if (aspectRatioFrameLayout != null && aspectRatioFrameLayout.getVisibility() == View.VISIBLE) {
-            // AJ: bump version immediately so browser reloads without waiting for preparePlayer
-            org.telegram.messenger.StreamingController sc = org.telegram.messenger.StreamingController.getInstance();
-            if (sc.isStreaming()) sc.version++;
+        // AJ: if streaming, always use direct switch regardless of fullscreen state
+        org.telegram.messenger.StreamingController sc = org.telegram.messenger.StreamingController.getInstance();
+        if (sc.isStreaming()) {
+            sc.version++;
             switchToNextIndex(-1, false);
             AndroidUtilities.runOnUIThread(() -> {
                 if (sc.isStreaming()) {
@@ -19384,6 +19388,10 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                     sc.hasPrev = leftImage.hasImageSet();
                 }
             }, 300);
+            return;
+        }
+        if (aspectRatioFrameLayout != null && aspectRatioFrameLayout.getVisibility() == View.VISIBLE) {
+            switchToNextIndex(-1, false);
             return;
         }
         float extra = 0;

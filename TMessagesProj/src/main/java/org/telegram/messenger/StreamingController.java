@@ -11,6 +11,7 @@ import android.os.Build;
 
 import java.io.File;
 import java.io.IOException;
+import android.os.PowerManager;
 
 public class StreamingController {
 
@@ -39,8 +40,9 @@ public class StreamingController {
     // Called when stop is requested - resume phone from browser position
     public volatile Runnable stopListener;
 
-    private LocalStreamServer server;
-    private Context           appContext;
+    private LocalStreamServer    server;
+    private Context              appContext;
+    private PowerManager.WakeLock wakeLock;
 
     private static final int    NOTIF_ID   = 7721;
     private static final String CHANNEL_ID = "stream_service";
@@ -78,6 +80,15 @@ public class StreamingController {
         version       = 0;
 
         if (server != null) { server.stop(); server = null; }
+        // Keep CPU alive so next/prev commands work when screen is off
+        if (wakeLock == null) {
+            PowerManager pm = (PowerManager) appContext.getSystemService(Context.POWER_SERVICE);
+            if (pm != null) {
+                wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Momo:streaming");
+                wakeLock.setReferenceCounted(false);
+            }
+        }
+        if (wakeLock != null && !wakeLock.isHeld()) wakeLock.acquire(3 * 60 * 60 * 1000L);
         try {
             server = new LocalStreamServer();
             server.start(30000, false);
@@ -114,6 +125,7 @@ public class StreamingController {
             AndroidUtilities.runOnUIThread(sl);
         }
         if (server != null) { server.stop(); server = null; }
+        if (wakeLock != null && wakeLock.isHeld()) { wakeLock.release(); }
         if (appContext != null) {
             NotificationManager nm = (NotificationManager)
                 appContext.getSystemService(Context.NOTIFICATION_SERVICE);
