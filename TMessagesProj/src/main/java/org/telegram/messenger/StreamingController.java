@@ -134,7 +134,7 @@ public class StreamingController {
     }
 
     public void onBrowserSeek(long posMs) {
-        position = posMs;
+        syncPosition(posMs);
         // Trigger download priority at this offset
         if (!fileName.isEmpty() && duration > 0 && videoFile != null) {
             long fileSize = videoFile.length();
@@ -142,6 +142,23 @@ public class StreamingController {
             FileLoader.getInstance(currentAccount).setStreamPriorityOffset(fileName, byteOffset);
         }
         if (seekListener != null) seekListener.onSeek(posMs);
+    }
+
+    /** Called by both browser seek and periodic updatepos to keep phone's
+     *  saved-position stores in sync with where the browser is playing. */
+    public void syncPosition(long posMs) {
+        position = posMs;
+        if (videoTitle == null || videoTitle.isEmpty() || duration <= 0) return;
+        // Convert ms → 0-1 float (same scale as media_saved_pos)
+        float prog = (float) posMs / (float) duration;
+        if (prog <= 0 || prog >= 0.999f) return;
+        // Write to short-term in-memory map (same key the app uses: getFileNameFast)
+        final String key = videoTitle;
+        AndroidUtilities.runOnUIThread(() -> {
+            org.telegram.ui.PhotoViewer pv = org.telegram.ui.PhotoViewer.hasInstance()
+                ? org.telegram.ui.PhotoViewer.getInstance() : null;
+            if (pv != null) pv.saveBrowserPosition(key, prog);
+        });
     }
 
     public String getUrl() {

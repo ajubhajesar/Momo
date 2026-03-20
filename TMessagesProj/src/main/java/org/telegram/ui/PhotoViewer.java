@@ -10997,7 +10997,13 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 sc2.fileName = fn2;
                 sc2.nextListener = () -> AndroidUtilities.runOnUIThread(this::goToNext);
                 sc2.prevListener = () -> AndroidUtilities.runOnUIThread(this::goToPrev);
-                sc2.position = 0;
+                // AJ: restore saved position so browser continues where phone left off.
+                // forceSeekTo is 0-1 float set by the position-restore block above.
+                if (currentMessageObject != null && currentMessageObject.forceSeekTo >= 0 && dur2 > 0) {
+                    sc2.position = (long)(currentMessageObject.forceSeekTo * dur2);
+                } else {
+                    sc2.position = 0;
+                }
                 sc2.version++;
             }
             updateQualityItems();
@@ -19510,6 +19516,22 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
 //        } catch (Exception e) {
 //            FileLog.e(e);
 //        }
+    }
+
+    /** Called by StreamingController.syncPosition to persist browser playback
+     *  position into the same stores used for video resume-on-open. */
+    public void saveBrowserPosition(String key, float progress) {
+        if (key == null || key.isEmpty()) return;
+        savedVideoPositions.put(key, new SavedVideoPosition(progress, android.os.SystemClock.elapsedRealtime()));
+        if (shouldSavePositionForCurrentVideo != null && shouldSavePositionForCurrentVideo.equals(key)) {
+            android.content.SharedPreferences.Editor ed = ApplicationLoader.applicationContext
+                .getSharedPreferences("media_saved_pos", android.app.Activity.MODE_PRIVATE).edit();
+            ed.putFloat(key, progress);
+            ed.apply();
+        }
+        if (currentMessageObject != null) {
+            currentMessageObject.cachedSavedTimestamp = progress;
+        }
     }
 
     private boolean shouldMessageObjectAutoPlayed(MessageObject messageObject) {

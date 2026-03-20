@@ -60,7 +60,7 @@ public class LocalStreamServer extends NanoHTTPD {
                     } else if ("stop".equals(action)) {
                         sc.stopStreaming();
                     } else if ("updatepos".equals(action)) {
-                        try { sc.position = Long.parseLong(extractJson(body, "position")); } catch (Exception ignored) {}
+                        try { sc.syncPosition(Long.parseLong(extractJson(body, "position"))); } catch (Exception ignored) {}
                     }
                 } catch (Exception ignored) {}
                 return jsonOK("{\"ok\":true}");
