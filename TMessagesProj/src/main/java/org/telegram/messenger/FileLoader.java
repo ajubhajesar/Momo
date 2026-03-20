@@ -800,10 +800,12 @@ public class FileLoader extends BaseController {
         if (f != null) { File df = new File(f, fileName); if (df.exists()) return df; }
         f = getDirectory(MEDIA_DIR_CACHE);
         if (f != null) { File cf = new File(f, fileName); if (cf.exists()) return cf; }
-        // Check if currently downloading - get the temp file
+        // Check if currently downloading - get the actual in-progress temp file.
+        // getTempPath() returns the temp directory, not the file being written.
+        // getCurrentFileFast() returns the actual cacheFileTemp path.
         FileLoadOperation op = loadOperationPaths.get(fileName);
         if (op != null) {
-            File tf = op.getTempPath();
+            File tf = op.getCurrentFileFast();
             if (tf != null && tf.exists() && tf.length() > 0) return tf;
         }
         return null;

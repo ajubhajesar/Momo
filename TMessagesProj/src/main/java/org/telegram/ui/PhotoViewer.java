@@ -6011,8 +6011,6 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                     }
                     playVideoOrWeb();
                 });
-            // AJ: startStreaming resets position=0; restore so browser seeks to phone's position
-            sc.position = savedPos;
 
             String url = sc.getUrl();
             android.content.ClipboardManager cm2 = (android.content.ClipboardManager)
@@ -10997,9 +10995,9 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 sc2.fileName = fn2;
                 sc2.nextListener = () -> AndroidUtilities.runOnUIThread(this::goToNext);
                 sc2.prevListener = () -> AndroidUtilities.runOnUIThread(this::goToPrev);
-                // AJ: restore saved position so browser continues where phone left off.
+                // Restore saved position so browser continues where phone left off.
                 // forceSeekTo is 0-1 float set by the position-restore block above.
-                if (currentMessageObject != null && currentMessageObject.forceSeekTo >= 0 && dur2 > 0) {
+                if (currentMessageObject.forceSeekTo >= 0 && dur2 > 0) {
                     sc2.position = (long)(currentMessageObject.forceSeekTo * dur2);
                 } else {
                     sc2.position = 0;
@@ -11007,9 +11005,10 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 sc2.version++;
             }
             updateQualityItems();
-            // AJ: when streaming, phone must stay paused — browser is the player
+            // When streaming, browser is the player — phone must stay paused.
+            // onActionClick always passes playWhenReady=true, so we override here.
             boolean _pwr = org.telegram.messenger.StreamingController.getInstance().isStreaming()
-                ? false : playWhenReady;
+                    ? false : playWhenReady;
             videoPlayer.setPlayWhenReady(_pwr);
             if (pipSource != null) {
                 pipSource.setPlayer(videoPlayer.player);
@@ -19494,12 +19493,12 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
         }
         playerAutoStarted = false;
         setImageIndex(currentIndex + add, init, true);
-        // AJ: when streaming, trigger preparePlayer so sc.videoFile/title update for
-        //     the new video. Pass playWhenReady=false — phone stays paused, browser plays.
         org.telegram.messenger.StreamingController _sc = org.telegram.messenger.StreamingController.getInstance();
         if (_sc.isStreaming() && currentMessageObject != null && currentMessageObject.isVideo()) {
+            // Streaming: trigger preparePlayer so sc.videoFile/title/version update.
+            // playWhenReady is overridden to false inside preparePlayer when streaming.
             playerAutoStarted = true;
-            onActionClick(false);   // false = don't autoplay on phone
+            onActionClick(true);
             checkProgress(0, false, true);
         } else if (!_sc.isStreaming()) {
             if (shouldMessageObjectAutoPlayed(currentMessageObject) || shouldIndexAutoPlayed(currentIndex)) {
@@ -19516,22 +19515,6 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
 //        } catch (Exception e) {
 //            FileLog.e(e);
 //        }
-    }
-
-    /** Called by StreamingController.syncPosition to persist browser playback
-     *  position into the same stores used for video resume-on-open. */
-    public void saveBrowserPosition(String key, float progress) {
-        if (key == null || key.isEmpty()) return;
-        savedVideoPositions.put(key, new SavedVideoPosition(progress, android.os.SystemClock.elapsedRealtime()));
-        if (shouldSavePositionForCurrentVideo != null && shouldSavePositionForCurrentVideo.equals(key)) {
-            android.content.SharedPreferences.Editor ed = ApplicationLoader.applicationContext
-                .getSharedPreferences("media_saved_pos", android.app.Activity.MODE_PRIVATE).edit();
-            ed.putFloat(key, progress);
-            ed.apply();
-        }
-        if (currentMessageObject != null) {
-            currentMessageObject.cachedSavedTimestamp = progress;
-        }
     }
 
     private boolean shouldMessageObjectAutoPlayed(MessageObject messageObject) {
