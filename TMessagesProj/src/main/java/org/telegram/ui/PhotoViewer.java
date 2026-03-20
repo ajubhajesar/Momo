@@ -10996,6 +10996,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 sc2.nextListener = () -> AndroidUtilities.runOnUIThread(this::goToNext);
                 sc2.prevListener = () -> AndroidUtilities.runOnUIThread(this::goToPrev);
                 sc2.position = 0;
+                sc2.version++;
                 // keep phone paused while streaming
                 pauseVideoOrWeb();
             }
@@ -19351,21 +19352,17 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
     }
 
     private void goToNext() {
-        // AJ: streaming check first - works regardless of fullscreen state
-        org.telegram.messenger.StreamingController sc = org.telegram.messenger.StreamingController.getInstance();
-        if (sc.isStreaming()) {
-            sc.version++;
+        if (aspectRatioFrameLayout != null && aspectRatioFrameLayout.getVisibility() == View.VISIBLE) {
+            // AJ: bump version immediately so browser reloads without waiting for preparePlayer
+            org.telegram.messenger.StreamingController sc = org.telegram.messenger.StreamingController.getInstance();
+            if (sc.isStreaming()) sc.version++;
             switchToNextIndex(1, false);
             AndroidUtilities.runOnUIThread(() -> {
                 if (sc.isStreaming()) {
                     sc.hasNext = rightImage.hasImageSet();
                     sc.hasPrev = leftImage.hasImageSet();
                 }
-            }, 1500);
-            return;
-        }
-        if (aspectRatioFrameLayout != null && aspectRatioFrameLayout.getVisibility() == View.VISIBLE) {
-            switchToNextIndex(1, false);
+            }, 300);
             return;
         }
         float extra = 0;
@@ -19377,21 +19374,17 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
     }
 
     private void goToPrev() {
-        // AJ: streaming check first - works regardless of fullscreen state
-        org.telegram.messenger.StreamingController sc = org.telegram.messenger.StreamingController.getInstance();
-        if (sc.isStreaming()) {
-            sc.version++;
+        if (aspectRatioFrameLayout != null && aspectRatioFrameLayout.getVisibility() == View.VISIBLE) {
+            // AJ: bump version immediately so browser reloads without waiting for preparePlayer
+            org.telegram.messenger.StreamingController sc = org.telegram.messenger.StreamingController.getInstance();
+            if (sc.isStreaming()) sc.version++;
             switchToNextIndex(-1, false);
             AndroidUtilities.runOnUIThread(() -> {
                 if (sc.isStreaming()) {
                     sc.hasNext = rightImage.hasImageSet();
                     sc.hasPrev = leftImage.hasImageSet();
                 }
-            }, 1500);
-            return;
-        }
-        if (aspectRatioFrameLayout != null && aspectRatioFrameLayout.getVisibility() == View.VISIBLE) {
-            switchToNextIndex(-1, false);
+            }, 300);
             return;
         }
         float extra = 0;

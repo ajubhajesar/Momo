@@ -151,7 +151,7 @@ public class LocalStreamServer extends NanoHTTPD {
         sb.append(".btn svg{width:14px;height:14px;fill:currentColor;pointer-events:none}");
         sb.append(".ghost{background:#1f2937;color:#e5e7eb;border:1px solid #374151}");
         sb.append(".ghost:hover{background:#374151}");
-        sb.append(".ghost.dim{opacity:0.3}");
+        sb.append(".ghost.dim{opacity:0.3;pointer-events:none}");
         sb.append(".stop{background:#dc2626;color:#fff}");
         sb.append(".sp{padding:5px 9px;border-radius:5px;border:1px solid #374151;background:#1f2937;color:#9ca3af;cursor:pointer;font-size:12px;font-weight:600;-webkit-tap-highlight-color:transparent}");
         sb.append(".sp.on{background:#3b82f6;color:#fff;border-color:#3b82f6}");
@@ -166,7 +166,7 @@ public class LocalStreamServer extends NanoHTTPD {
         sb.append(".nav2{display:flex;gap:8px;padding:0 12px 12px}");
         sb.append(".nc{flex:1;background:#1f2937;border:1px solid #374151;border-radius:8px;overflow:hidden;cursor:pointer;-webkit-tap-highlight-color:transparent}");
         sb.append(".nc:hover{border-color:#3b82f6}");
-        sb.append(".nc.dim{opacity:0.3}");
+        sb.append(".nc.dim{opacity:0.3;pointer-events:none}");
         sb.append(".nct{aspect-ratio:16/9;background:#111827;display:flex;align-items:center;justify-content:center;font-size:24px}");
         sb.append(".ncl{font-size:10px;font-weight:700;text-transform:uppercase;color:#6b7280;padding:6px 8px 2px}");
         sb.append(".nctx{font-size:11px;color:#d1d5db;padding:0 8px 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}");
@@ -230,7 +230,7 @@ public class LocalStreamServer extends NanoHTTPD {
         sb.append("  v.load();");
         sb.append("  v.addEventListener('canplay',function oncp(){");
         sb.append("    v.removeEventListener('canplay',oncp);");
-        sb.append("    if(pos>1000)v.currentTime=pos/1000;");
+        sb.append("    if(pos>0)v.currentTime=pos/1000;");
         sb.append("    v.playbackRate=curSpeed;");
         sb.append("    v.play().catch(function(){});");
         sb.append("  });");
@@ -268,7 +268,7 @@ public class LocalStreamServer extends NanoHTTPD {
         sb.append("    var r=await fetch('/status',{cache:'no-store'});");
         sb.append("    var d=await r.json();");
         sb.append("    nt.textContent=d.title;npt.textContent=d.title;");
-        sb.append("    if(d.version!==lastVersion){lastVersion=d.version;lastTitle=d.title;nt.textContent=d.title;npt.textContent=d.title;reload(d.position);}");
+        sb.append("    if(d.version!==lastVersion){lastVersion=d.version;nt.textContent=d.title;npt.textContent=d.title;reload(d.position);}");
         sb.append("    if(!userSpeed&&d.speed&&Math.abs(d.speed-curSpeed)>0.01){");
         sb.append("      curSpeed=d.speed;v.playbackRate=d.speed;");
         sb.append("      document.querySelectorAll('.sp').forEach(function(x){x.classList.toggle('on',parseFloat(x.textContent)===d.speed);});");
