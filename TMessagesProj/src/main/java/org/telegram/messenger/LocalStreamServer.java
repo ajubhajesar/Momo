@@ -236,7 +236,7 @@ public class LocalStreamServer extends NanoHTTPD {
         "const nthumb=document.getElementById('nthumb');" +
         "const pvb=document.getElementById('pvb'),nxb=document.getElementById('nxb');" +
         "const pvc=document.getElementById('pvc'),nxc=document.getElementById('nxc');" +
-                        "let lastTitle='',totalDur=0,dragging=false,curSpeed=2,userSpeed=false,userSpeedTimer=null;" +
+        "let lastTitle='',totalDur=0,dragging=false,curSpeed=2,userSpeed=false,userSpeedTimer=null;" +
 
         // Speed buttons
         "const SPEEDS=[0.25,0.5,0.75,1,1.25,1.5,1.75,2,2.5,3];" +
@@ -254,9 +254,6 @@ public class LocalStreamServer extends NanoHTTPD {
 
         "function fmt(ms){if(!ms||ms<0)return'0:00';const s=Math.floor(ms/1000),m=Math.floor(s/60),sec=s%60;return m+':'+(sec<10?'0':'')+sec;}" +
 
-        // Seekbar
-                                
-                "}" +
 
         "if('mediaSession' in navigator){" +
         "  navigator.mediaSession.setActionHandler('previoustrack',prevVideo);" +
@@ -264,11 +261,10 @@ public class LocalStreamServer extends NanoHTTPD {
         "}" +
 
         "document.addEventListener('keydown',e=>{" +
-        "  if(e.code==='KeyF')toggleFS();" +
-        "  else if(e.code==='KeyN')nextVideo();" +
+        "  if(e.code==='KeyN')nextVideo();" +
         "  else if(e.code==='KeyP')prevVideo();" +
         "  else if(e.code==='Space'){e.preventDefault();v.paused?v.play():v.pause();}" +
-                        "});" +
+        "});" +
 
         "async function stopStream(){" +
         "  await cmd('updatepos',Math.round(v.currentTime*1000));" +
