@@ -790,6 +790,25 @@ public class FileLoader extends BaseController {
         }
     }
 
+    // AJ: get best available file path for a fileName (temp while downloading, final when done)
+    public File getBestAvailableFile(final String fileName) {
+        if (TextUtils.isEmpty(fileName)) return null;
+        // Check if fully downloaded via normal path lookup
+        File f = getDirectory(MEDIA_DIR_VIDEO);
+        if (f != null) { File vf = new File(f, fileName); if (vf.exists()) return vf; }
+        f = getDirectory(MEDIA_DIR_DOCUMENT);
+        if (f != null) { File df = new File(f, fileName); if (df.exists()) return df; }
+        f = getDirectory(MEDIA_DIR_CACHE);
+        if (f != null) { File cf = new File(f, fileName); if (cf.exists()) return cf; }
+        // Check if currently downloading - get the temp file
+        FileLoadOperation op = loadOperationPaths.get(fileName);
+        if (op != null) {
+            File tf = op.getTempPath();
+            if (tf != null && tf.exists() && tf.length() > 0) return tf;
+        }
+        return null;
+    }
+
     public File getLocalFile(ImageLocation imageLocation) {
         if (imageLocation == null) return null;
         String fileName;

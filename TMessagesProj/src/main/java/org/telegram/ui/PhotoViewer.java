@@ -5972,15 +5972,15 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 return;
             }
 
-            // Resolve file - try completed then partial cache
-            java.io.File sf = FileLoader.getInstance(currentAccount).getPathToMessage(currentMessageObject.messageOwner);
+            // Resolve file - try completed path first, then temp/partial
             String fn = FileLoader.getAttachFileName(currentMessageObject.getDocument());
+            java.io.File sf = FileLoader.getInstance(currentAccount).getPathToMessage(currentMessageObject.messageOwner);
             if (sf == null || !sf.exists()) {
-                sf = new java.io.File(FileLoader.getDirectory(FileLoader.MEDIA_DIR_CACHE), fn);
-                if (!sf.exists()) {
-                    android.widget.Toast.makeText(parentActivity, "Video not yet downloaded", android.widget.Toast.LENGTH_SHORT).show();
-                    return;
-                }
+                sf = FileLoader.getInstance(currentAccount).getBestAvailableFile(fn);
+            }
+            if (sf == null || !sf.exists() || sf.length() == 0) {
+                android.widget.Toast.makeText(parentActivity, "Video not available yet", android.widget.Toast.LENGTH_SHORT).show();
+                return;
             }
 
             // Pause phone video and save position
@@ -10978,11 +10978,19 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 long dur2 = videoPlayer != null && videoPlayer.getDuration() > 0
                     ? videoPlayer.getDuration()
                     : (long)(currentMessageObject.getDuration() * 1000L);
-                org.telegram.messenger.StreamingController.getInstance().updateVideo(sf, st, dur2,
-                    rightImage.hasImageSet(), leftImage.hasImageSet(), currentVideoSpeed, fn2,
-                    () -> AndroidUtilities.runOnUIThread(this::goToNext),
-                    () -> AndroidUtilities.runOnUIThread(this::goToPrev),
-                    null, null);
+                java.io.File sf2 = sf;
+                if (sf2 == null || !sf2.exists()) {
+                    sf2 = FileLoader.getInstance(currentAccount).getBestAvailableFile(fn2);
+                }
+                if (sf2 != null && sf2.exists()) {
+                    org.telegram.messenger.StreamingController.getInstance().updateVideo(sf2, st, dur2,
+                        rightImage.hasImageSet(), leftImage.hasImageSet(), currentVideoSpeed, fn2,
+                        () -> AndroidUtilities.runOnUIThread(this::goToNext),
+                        () -> AndroidUtilities.runOnUIThread(this::goToPrev),
+                        null, null);
+                }
+                // keep phone paused while streaming
+                pauseVideoOrWeb();
             }
             updateQualityItems();
             videoPlayer.setPlayWhenReady(playWhenReady);
@@ -19338,6 +19346,14 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
     private void goToNext() {
         if (aspectRatioFrameLayout != null && aspectRatioFrameLayout.getVisibility() == View.VISIBLE) {
             switchToNextIndex(1, false);
+            // AJ: update streaming nav state after switch
+            AndroidUtilities.runOnUIThread(() -> {
+                org.telegram.messenger.StreamingController sc = org.telegram.messenger.StreamingController.getInstance();
+                if (sc.isStreaming()) {
+                    sc.hasNext = rightImage.hasImageSet();
+                    sc.hasPrev = leftImage.hasImageSet();
+                }
+            }, 300);
             return;
         }
         float extra = 0;
@@ -19351,6 +19367,14 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
     private void goToPrev() {
         if (aspectRatioFrameLayout != null && aspectRatioFrameLayout.getVisibility() == View.VISIBLE) {
             switchToNextIndex(-1, false);
+            // AJ: update streaming nav state after switch
+            AndroidUtilities.runOnUIThread(() -> {
+                org.telegram.messenger.StreamingController sc = org.telegram.messenger.StreamingController.getInstance();
+                if (sc.isStreaming()) {
+                    sc.hasNext = rightImage.hasImageSet();
+                    sc.hasPrev = leftImage.hasImageSet();
+                }
+            }, 300);
             return;
         }
         float extra = 0;
@@ -19451,10 +19475,13 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
         }
         playerAutoStarted = false;
         setImageIndex(currentIndex + add, init, true);
-        if (shouldMessageObjectAutoPlayed(currentMessageObject) || shouldIndexAutoPlayed(currentIndex)) {
-            playerAutoStarted = true;
-            onActionClick(true);
-            checkProgress(0, false, true);
+        // AJ: if streaming, don't autoplay on phone - browser is the player
+        if (!org.telegram.messenger.StreamingController.getInstance().isStreaming()) {
+            if (shouldMessageObjectAutoPlayed(currentMessageObject) || shouldIndexAutoPlayed(currentIndex)) {
+                playerAutoStarted = true;
+                onActionClick(true);
+                checkProgress(0, false, true);
+            }
         }
         checkFullscreenButton();
 

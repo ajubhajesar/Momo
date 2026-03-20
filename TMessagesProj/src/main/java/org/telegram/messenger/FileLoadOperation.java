@@ -504,6 +504,9 @@ public class FileLoadOperation {
         return priority;
     }
 
+    // AJ: expose temp file path for streaming
+    public File getTempPath() { return tempPath; }
+
     public void setPaths(int instance, String name, FileLoaderPriorityQueue priorityQueue, File store, File temp, String finalName) {
         this.storePath = store;
         this.tempPath = temp;
