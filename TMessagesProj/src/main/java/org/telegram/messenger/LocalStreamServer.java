@@ -217,6 +217,9 @@ public class LocalStreamServer extends NanoHTTPD {
         "  </button>" +
         "  <div class='spacer'></div>" +
         "  <div id='speeds' style='display:flex;gap:4px'></div>" +
+        "  <button class='btn btn-danger' onclick='stopStream()' style='background:#dc2626;color:#fff;border:none;margin-right:4px'>" +
+        "    <svg viewBox='0 0 24 24'><path d='M6 6h12v12H6z'/></svg>Stop" +
+        "  </button>" +
         "  <button class='btn btn-ghost' onclick='toggleFS()'>" +
         "    <svg viewBox='0 0 24 24'><path d='M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z'/></svg>" +
         "  </button>" +
@@ -245,7 +248,7 @@ public class LocalStreamServer extends NanoHTTPD {
         "const pvc=document.getElementById('pvc'),nxc=document.getElementById('nxc');" +
         "const seekbar=document.getElementById('seekbar');" +
         "const curEl=document.getElementById('cur'),durEl=document.getElementById('dur');" +
-        "let lastTitle='',totalDur=0,dragging=false,curSpeed=1;" +
+        "let lastTitle='',totalDur=0,dragging=false,curSpeed=1,userSpeed=false,userSpeedTimer=null;" +
 
         // Speed buttons
         "const SPEEDS=[0.25,0.5,0.75,1,1.25,1.5,1.75,2,2.5,3];" +
@@ -254,7 +257,8 @@ public class LocalStreamServer extends NanoHTTPD {
         "  const b=document.createElement('button');" +
         "  b.className='spd'+(s===1?' active':'');" +
         "  b.textContent=s+'x';" +
-        "  b.onclick=()=>{v.playbackRate=s;curSpeed=s;" +
+        "  b.onclick=()=>{v.playbackRate=s;curSpeed=s;userSpeed=true;" +
+        "    clearTimeout(userSpeedTimer);userSpeedTimer=setTimeout(()=>userSpeed=false,10000);" +
         "    document.querySelectorAll('.spd').forEach(x=>x.classList.toggle('active',parseFloat(x.textContent)===s));" +
         "  };" +
         "  spdDiv.appendChild(b);" +
@@ -280,7 +284,6 @@ public class LocalStreamServer extends NanoHTTPD {
         "  const ms=v.currentTime*1000;" +
         "  seekbar.value=Math.round(ms/totalDur*1000);" +
         "  curEl.textContent=fmt(ms);" +
-        "  // report position to phone every 5s\n" +
         "  if(!v._lastReport||Date.now()-v._lastReport>5000){v._lastReport=Date.now();cmd('updatepos',Math.round(ms));}" +
         "});" +
 
@@ -308,17 +311,23 @@ public class LocalStreamServer extends NanoHTTPD {
         "  else if(e.code==='ArrowRight'){e.preventDefault();v.currentTime+=10;cmd('seek',v.currentTime*1000);}" +
         "});" +
 
+        "async function stopStream(){" +
+        "  await cmd('updatepos',Math.round(v.currentTime*1000));" +
+        "  await cmd('stop');" +
+        "}" +
         "async function cmd(a,pos){" +
         "  const body=pos!==undefined?JSON.stringify({action:a,position:Math.round(pos)}):JSON.stringify({action:a});" +
         "  try{await fetch('/control',{method:'POST',headers:{'Content-Type':'application/json'},body});}catch(e){}" +
         "}" +
 
-        "function prevVideo(){cmd('prev').then(()=>setTimeout(reload,500));}" +
-        "function nextVideo(){cmd('next').then(()=>setTimeout(reload,500));}" +
+        "function prevVideo(){cmd('prev');}" +
+        "function nextVideo(){cmd('next');}" +
 
         "function reload(){" +
         "  v.src='/video?t='+Date.now();" +
         "  nthumb.src='/thumb?t='+Date.now();" +
+        "  v.load();" +
+        "  v.play().catch(()=>{});" +
         "}" +
 
         "async function connect(){" +
@@ -341,7 +350,7 @@ public class LocalStreamServer extends NanoHTTPD {
         "    if(d.title!==lastTitle){lastTitle=d.title;reload();}" +
         "    updateUI(d);" +
         "  }catch(e){}" +
-        "  setTimeout(poll,3000);" +
+        "  setTimeout(poll,1000);" +
         "}" +
 
         "function updateUI(d){" +
@@ -357,7 +366,7 @@ public class LocalStreamServer extends NanoHTTPD {
         "    seekbar.style.setProperty('--prog',progPct);" +
         "  }" +
         // Sync speed from phone
-        "  if(Math.abs(d.speed-curSpeed)>0.01){" +
+        "  if(!userSpeed&&Math.abs(d.speed-curSpeed)>0.01){" +
         "    curSpeed=d.speed;v.playbackRate=d.speed;" +
         "    document.querySelectorAll('.spd').forEach(x=>x.classList.toggle('active',parseFloat(x.textContent)===d.speed));" +
         "  }" +
