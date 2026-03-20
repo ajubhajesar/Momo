@@ -10984,13 +10984,18 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 if (sf2 == null || !sf2.exists()) {
                     sf2 = FileLoader.getInstance(currentAccount).getBestAvailableFile(fn2);
                 }
-                if (sf2 != null && sf2.exists()) {
-                    org.telegram.messenger.StreamingController.getInstance().updateVideo(sf2, st, dur2,
-                        rightImage.hasImageSet(), leftImage.hasImageSet(), currentVideoSpeed, fn2,
-                        () -> AndroidUtilities.runOnUIThread(this::goToNext),
-                        () -> AndroidUtilities.runOnUIThread(this::goToPrev),
-                        null, null);
-                }
+                // AJ: always update title/nav state; file can be null if not yet downloaded
+                org.telegram.messenger.StreamingController sc2 = org.telegram.messenger.StreamingController.getInstance();
+                if (sf2 != null && sf2.exists()) sc2.videoFile = sf2;
+                sc2.videoTitle = st;
+                sc2.duration = dur2;
+                sc2.hasNext = rightImage.hasImageSet();
+                sc2.hasPrev = leftImage.hasImageSet();
+                sc2.speed = currentVideoSpeed;
+                sc2.fileName = fn2;
+                sc2.nextListener = () -> AndroidUtilities.runOnUIThread(this::goToNext);
+                sc2.prevListener = () -> AndroidUtilities.runOnUIThread(this::goToPrev);
+                sc2.position = 0;
                 // keep phone paused while streaming
                 pauseVideoOrWeb();
             }
@@ -19347,10 +19352,11 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
 
     private void goToNext() {
         if (aspectRatioFrameLayout != null && aspectRatioFrameLayout.getVisibility() == View.VISIBLE) {
+            // AJ: bump version immediately so browser reloads without waiting for preparePlayer
+            org.telegram.messenger.StreamingController sc = org.telegram.messenger.StreamingController.getInstance();
+            if (sc.isStreaming()) sc.version++;
             switchToNextIndex(1, false);
-            // AJ: update streaming nav state after switch
             AndroidUtilities.runOnUIThread(() -> {
-                org.telegram.messenger.StreamingController sc = org.telegram.messenger.StreamingController.getInstance();
                 if (sc.isStreaming()) {
                     sc.hasNext = rightImage.hasImageSet();
                     sc.hasPrev = leftImage.hasImageSet();
@@ -19368,10 +19374,11 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
 
     private void goToPrev() {
         if (aspectRatioFrameLayout != null && aspectRatioFrameLayout.getVisibility() == View.VISIBLE) {
+            // AJ: bump version immediately so browser reloads without waiting for preparePlayer
+            org.telegram.messenger.StreamingController sc = org.telegram.messenger.StreamingController.getInstance();
+            if (sc.isStreaming()) sc.version++;
             switchToNextIndex(-1, false);
-            // AJ: update streaming nav state after switch
             AndroidUtilities.runOnUIThread(() -> {
-                org.telegram.messenger.StreamingController sc = org.telegram.messenger.StreamingController.getInstance();
                 if (sc.isStreaming()) {
                     sc.hasNext = rightImage.hasImageSet();
                     sc.hasPrev = leftImage.hasImageSet();
