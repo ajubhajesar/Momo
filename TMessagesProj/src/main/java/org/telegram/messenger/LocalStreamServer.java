@@ -46,7 +46,7 @@ public class LocalStreamServer extends NanoHTTPD {
                     "{\"title\":\"%s\",\"hasNext\":%b,\"hasPrev\":%b," +
                     "\"duration\":%d,\"buffered\":%d,\"speed\":%.2f}",
                     escapeJson(sc.videoTitle), sc.hasNext, sc.hasPrev,
-                    sc.duration, buffered, sc.speed);
+                    sc.duration, sc.position, buffered, sc.speed);
                 return jsonOK(json);
             }
 
@@ -261,9 +261,18 @@ public class LocalStreamServer extends NanoHTTPD {
         "}" +
 
         "document.addEventListener('keydown',e=>{" +
-        "  if(e.code==='KeyN')nextVideo();" +
+        "  if(e.target.tagName==='INPUT')return;" +
+        "  if(e.code==='Space'||e.code==='KeyK'){e.preventDefault();v.paused?v.play():v.pause();}" +
+        "  else if(e.code==='ArrowRight'||e.code==='KeyL'){e.preventDefault();v.currentTime+=10;cmd('updatepos',Math.round(v.currentTime*1000));}" +
+        "  else if(e.code==='ArrowLeft'||e.code==='KeyJ'){e.preventDefault();v.currentTime=Math.max(0,v.currentTime-10);cmd('updatepos',Math.round(v.currentTime*1000));}" +
+        "  else if(e.code==='ArrowUp'){e.preventDefault();v.volume=Math.min(1,v.volume+0.1);}" +
+        "  else if(e.code==='ArrowDown'){e.preventDefault();v.volume=Math.max(0,v.volume-0.1);}" +
+        "  else if(e.code==='KeyM'){v.muted=!v.muted;}" +
+        "  else if(e.code==='KeyN')nextVideo();" +
         "  else if(e.code==='KeyP')prevVideo();" +
-        "  else if(e.code==='Space'){e.preventDefault();v.paused?v.play():v.pause();}" +
+        "  else if(e.code==='KeyF'){if(v.requestFullscreen)v.requestFullscreen();}" +
+        "  else if(e.code==='Comma'){const s=SPEEDS[Math.max(0,SPEEDS.indexOf(curSpeed)-1)];v.playbackRate=s;curSpeed=s;}" +
+        "  else if(e.code==='Period'){const s=SPEEDS[Math.min(SPEEDS.length-1,SPEEDS.indexOf(curSpeed)+1)];v.playbackRate=s;curSpeed=s;}" +
         "});" +
 
         "async function stopStream(){" +
@@ -278,12 +287,15 @@ public class LocalStreamServer extends NanoHTTPD {
         "function prevVideo(){cmd('prev');}" +
         "function nextVideo(){cmd('next');}" +
 
-        "function reload(){" +
+        "var reloadPos=0;" +
+        "function reload(seekMs){" +
+        "  reloadPos=seekMs||0;" +
         "  v.src='/video?t='+Date.now();" +
         "  nthumb.src='/thumb?t='+Date.now();" +
         "  v.load();" +
         "  v.addEventListener('canplay',function oncp(){" +
         "    v.removeEventListener('canplay',oncp);" +
+        "    if(reloadPos>0)v.currentTime=reloadPos/1000;" +
         "    v.playbackRate=curSpeed;" +
         "    v.play().catch(()=>{});" +
         "  });" +
@@ -296,7 +308,7 @@ public class LocalStreamServer extends NanoHTTPD {
         "      const d=await r.json();" +
         "      ov.classList.add('h');" +
         "      updateUI(d);" +
-        "      if(lastTitle!==d.title){lastTitle=d.title;reload();}" +
+        "      if(lastTitle!==d.title){lastTitle=d.title;reload(d.position);}" +
         "      poll();" +
         "    }else{om.textContent='Error '+r.status;setTimeout(connect,2000);}" +
         "  }catch(e){om.textContent='Cannot reach phone. Same WiFi?';setTimeout(connect,2000);}" +
@@ -306,7 +318,7 @@ public class LocalStreamServer extends NanoHTTPD {
         "  try{" +
         "    const r=await fetch('/status',{cache:'no-store'});" +
         "    const d=await r.json();" +
-        "    if(d.title!==lastTitle){lastTitle=d.title;reload();}" +
+        "    if(d.title!==lastTitle){lastTitle=d.title;reload(d.position);}" +
         "    updateUI(d);" +
         "  }catch(e){}" +
         "  setTimeout(poll,1000);" +

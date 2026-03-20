@@ -5994,8 +5994,9 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
             final java.io.File finalSf = sf;
             final String finalFn = fn;
 
-            sc.startStreaming(parentActivity, sf, currentMessageObject.getDocument() != null
-                    ? currentMessageObject.getDocument().file_name : fn,
+            String stitle = currentMessageObject.getFileNameFast();
+            if (stitle == null || stitle.isEmpty()) stitle = fn;
+            sc.startStreaming(parentActivity, sf, stitle,
                 dur,
                 rightImage.hasImageSet(), leftImage.hasImageSet(),
                 currentVideoSpeed, fn, currentAccount,
@@ -10973,8 +10974,9 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
             }
             if (org.telegram.messenger.StreamingController.getInstance().isStreaming() && currentMessageObject != null) {
                 java.io.File sf = FileLoader.getInstance(currentAccount).getPathToMessage(currentMessageObject.messageOwner);
-                String st = FileLoader.getAttachFileName(currentMessageObject.getDocument());
                 String fn2 = FileLoader.getAttachFileName(currentMessageObject.getDocument());
+                String st = currentMessageObject.getFileNameFast();
+                if (st == null || st.isEmpty()) st = fn2;
                 long dur2 = videoPlayer != null && videoPlayer.getDuration() > 0
                     ? videoPlayer.getDuration()
                     : (long)(currentMessageObject.getDuration() * 1000L);
