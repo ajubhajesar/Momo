@@ -19485,8 +19485,16 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
         }
         playerAutoStarted = false;
         setImageIndex(currentIndex + add, init, true);
-        // AJ: if streaming, don't autoplay on phone - browser is the player
-        if (!org.telegram.messenger.StreamingController.getInstance().isStreaming()) {
+        // AJ: if streaming and a video is current, always trigger preparePlayer so
+        //     sc.videoFile / sc.videoTitle etc. get updated for the new track.
+        //     preparePlayer's streaming block calls pauseVideoOrWeb() so phone stays paused.
+        //     If not streaming, only autoplay per normal rules.
+        org.telegram.messenger.StreamingController _sc = org.telegram.messenger.StreamingController.getInstance();
+        if (_sc.isStreaming() && currentMessageObject != null && currentMessageObject.isVideo()) {
+            playerAutoStarted = true;
+            onActionClick(true);
+            checkProgress(0, false, true);
+        } else if (!_sc.isStreaming()) {
             if (shouldMessageObjectAutoPlayed(currentMessageObject) || shouldIndexAutoPlayed(currentIndex)) {
                 playerAutoStarted = true;
                 onActionClick(true);
