@@ -23,6 +23,7 @@ public class StreamingController {
     public volatile boolean hasPrev       = false;
     public volatile long    duration      = 0;    // ms - total duration
     public volatile long    position      = 0;    // ms - last known browser position
+    public volatile int     version       = 0;    // increments on every video change
     public volatile float   speed         = 1.0f;
     public volatile String  fileName      = "";   // for FileLoader priority
     public volatile int     currentAccount = 0;
@@ -74,6 +75,7 @@ public class StreamingController {
         seekListener  = onSeek;
         stopListener  = onStop;
         position      = 0;
+        version       = 0;
 
         if (server != null) { server.stop(); server = null; }
         try {
@@ -101,6 +103,7 @@ public class StreamingController {
         if (onSeek != null) seekListener = onSeek;
         if (onStop != null) stopListener = onStop;
         position   = 0;
+        version++;
         updateNotification(title);
     }
 

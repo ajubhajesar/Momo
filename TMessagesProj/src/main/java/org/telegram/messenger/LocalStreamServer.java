@@ -39,7 +39,7 @@ public class LocalStreamServer extends NanoHTTPD {
                 String json = String.format(
                     "{\"title\":\"%s\",\"hasNext\":%b,\"hasPrev\":%b,\"duration\":%d,\"position\":%d,\"buffered\":%d,\"speed\":%.2f}",
                     escapeJson(sc.videoTitle), sc.hasNext, sc.hasPrev,
-                    sc.duration, sc.position, buffered, sc.speed);
+                    sc.duration, sc.position, buffered, sc.speed, sc.version);
                 return jsonOK(json);
             }
 
@@ -207,7 +207,7 @@ public class LocalStreamServer extends NanoHTTPD {
         sb.append("var nt=document.getElementById('nt'),npt=document.getElementById('npt'),th=document.getElementById('th');");
         sb.append("var pvb=document.getElementById('pvb'),nxb=document.getElementById('nxb');");
         sb.append("var pvc=document.getElementById('pvc'),nxc=document.getElementById('nxc');");
-        sb.append("var lastTitle='',curSpeed=2,userSpeed=false,userSpeedTimer=null;");
+        sb.append("var lastTitle='',lastVersion=-1,curSpeed=2,userSpeed=false,userSpeedTimer=null;");
         sb.append("var SPEEDS=[0.25,0.5,0.75,1,1.25,1.5,1.75,2,2.5,3];");
         sb.append("var spdDiv=document.getElementById('spd');");
         sb.append("SPEEDS.forEach(function(s){");
@@ -268,7 +268,7 @@ public class LocalStreamServer extends NanoHTTPD {
         sb.append("    var r=await fetch('/status',{cache:'no-store'});");
         sb.append("    var d=await r.json();");
         sb.append("    nt.textContent=d.title;npt.textContent=d.title;");
-        sb.append("    if(d.title!==lastTitle){lastTitle=d.title;reload(d.position);}");
+        sb.append("    if(d.version!==lastVersion){lastVersion=d.version;lastTitle=d.title;nt.textContent=d.title;npt.textContent=d.title;reload(d.position);}");
         sb.append("    if(!userSpeed&&d.speed&&Math.abs(d.speed-curSpeed)>0.01){");
         sb.append("      curSpeed=d.speed;v.playbackRate=d.speed;");
         sb.append("      document.querySelectorAll('.sp').forEach(function(x){x.classList.toggle('on',parseFloat(x.textContent)===d.speed);});");
@@ -285,7 +285,7 @@ public class LocalStreamServer extends NanoHTTPD {
         sb.append("    if(r.ok){");
         sb.append("      var d=await r.json();");
         sb.append("      ov.classList.add('h');");
-        sb.append("      lastTitle=d.title;");
+        sb.append("      lastTitle=d.title;lastVersion=d.version;");
         sb.append("      nt.textContent=d.title;npt.textContent=d.title;");
         sb.append("      reload(d.position);");
         sb.append("      poll();");
