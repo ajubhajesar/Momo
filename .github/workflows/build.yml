@@ -66,9 +66,6 @@ jobs:
         run: |
           export PKG_CONFIG_PATH="\
           $PWD/TMessagesProj/jni/dav1d/build/arm64-v8a/lib/pkgconfig:\
-          $PWD/TMessagesProj/jni/dav1d/build/armeabi-v7a/lib/pkgconfig:\
-          $PWD/TMessagesProj/jni/dav1d/build/x86/lib/pkgconfig:\
-          $PWD/TMessagesProj/jni/dav1d/build/x86_64/lib/pkgconfig:\
           $PKG_CONFIG_PATH"
           ./run init libs ffmpeg
 
@@ -76,7 +73,7 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           cd TMessagesProj/jni
-          for ARCH in arm64-v8a armeabi-v7a x86 x86_64; do
+          for ARCH in arm64-v8a; do
             cp ffmpeg/config.h ffmpeg/build/$ARCH/include/config.h
           done
 
@@ -184,7 +181,7 @@ jobs:
           patch -N -f -d ffmpeg -p1 < patches/ffmpeg/0001-compilation-magic.patch || true
           patch -N -f -d ffmpeg -p1 < patches/ffmpeg/0001-PATCH-replace-SUINT-with-unsigned.patch || true
           sed -i 's/register int/int/g; s/register unsigned int/unsigned int/g; s/register int32_t/int32_t/g' ffmpeg/libavcodec/get_bits.h || true
-          for ARCH in arm64-v8a armeabi-v7a x86 x86_64; do
+          for ARCH in arm64-v8a; do
             [ -d ffmpeg/build/$ARCH/include ] && cp ffmpeg/config.h ffmpeg/build/$ARCH/include/config.h || true
           done
           ./patch_ffmpeg.sh || true

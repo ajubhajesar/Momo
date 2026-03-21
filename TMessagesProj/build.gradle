@@ -14,7 +14,7 @@ def gitHash = new String(gitHashBuf, StandardCharsets.UTF_8).trim().replace('\''
 verName += "-" + gitHash
 println(gitHash)
 
-def archs = List.of("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+def archs = List.of("arm64-v8a")
 
 def officialVer = APP_VERSION_NAME
 def officialCode = APP_VERSION_CODE
@@ -105,7 +105,7 @@ android {
             if (nativeTarget.isBlank()) {
                 enable true
                 reset()
-                include 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
+                include 'arm64-v8a'
                 universalApk false
             } else if (nativeTarget.toLowerCase().equals("universal")) {
                 enable false
