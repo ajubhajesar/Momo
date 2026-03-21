@@ -784,10 +784,12 @@ public class FileLoader extends BaseController {
     // AJ: tell downloader to prioritize a specific byte offset (for browser seek)
     public void setStreamPriorityOffset(final String fileName, final long byteOffset) {
         if (TextUtils.isEmpty(fileName)) return;
-        FileLoadOperation op = loadOperationPaths.get(fileName);
-        if (op != null) {
-            op.setStream(null, true, byteOffset);
-        }
+        fileLoaderQueue.postRunnable(() -> {
+            FileLoadOperation op = loadOperationPaths.get(fileName);
+            if (op != null) {
+                op.setStream(null, true, byteOffset);
+            }
+        });
     }
 
     // AJ: get best available file path for a fileName (temp while downloading, final when done)

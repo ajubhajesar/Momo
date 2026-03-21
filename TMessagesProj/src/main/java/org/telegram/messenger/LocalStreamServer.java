@@ -264,6 +264,9 @@ public class LocalStreamServer extends NanoHTTPD {
         sb.append("v.addEventListener('timeupdate',function(){");
         sb.append("  if(!v._lr||Date.now()-v._lr>5000){v._lr=Date.now();cmd('updatepos',Math.round(v.currentTime*1000));}");
         sb.append("});");
+        sb.append("v.addEventListener('seeking',function(){");
+        sb.append("  cmd('seek',Math.round(v.currentTime*1000));");
+        sb.append("})");
         sb.append("async function poll(){");
         sb.append("  try{");
         sb.append("    var r=await fetch('/status',{cache:'no-store'});");
