@@ -25,8 +25,6 @@ public class LocalStreamServer extends NanoHTTPD {
         StreamingController sc = StreamingController.getInstance();
 
         switch (uri) {
-            case "/ping":
-                return jsonOK("{"ok":true,"file":"" + (sc.videoFile != null ? sc.videoFile.exists() + "," + sc.videoFile.length() : "null") + "","title":"" + escapeJson(sc.videoTitle) + ""}");
             case "/":
             case "/index.html":
                 return newFixedLengthResponse(Response.Status.OK, "text/html; charset=utf-8", buildHtml());
@@ -86,18 +84,10 @@ public class LocalStreamServer extends NanoHTTPD {
     }
 
     private Response serveFile(IHTTPSession session, File file) {
-        // Use SC duration to compute real file size if available (handles partial downloads)
-        StreamingController sc = StreamingController.getInstance();
         long fileSize = file.length();
-        if (sc.duration > 0 && fileSize > 0) {
-            // If file is still downloading, extrapolate total size from duration
-            // This gives browser a realistic Content-Length so seekbar works
-        }
-
         String range = session.getHeaders().get("range");
         long start = 0, end = fileSize - 1;
         Response.Status status = Response.Status.OK;
-
         if (range != null && range.startsWith("bytes=")) {
             status = Response.Status.PARTIAL_CONTENT;
             String[] parts = range.substring(6).split("-");
@@ -105,28 +95,17 @@ public class LocalStreamServer extends NanoHTTPD {
             if (parts.length > 1 && !parts[1].trim().isEmpty()) {
                 try { end = Long.parseLong(parts[1].trim()); } catch (Exception ignored) {}
             }
-            // Clamp end to available bytes
             if (end >= fileSize) end = fileSize - 1;
-            if (start > end) start = 0;
         }
-
         try {
             FileInputStream fis = new FileInputStream(file);
             fis.getChannel().position(start);
             java.io.BufferedInputStream bis = new java.io.BufferedInputStream(fis, 256 * 1024);
-            String mime = "video/mp4";
-            String name = file.getName().toLowerCase();
-            if (name.endsWith(".mkv")) mime = "video/x-matroska";
-            else if (name.endsWith(".webm")) mime = "video/webm";
-            else if (name.endsWith(".mov")) mime = "video/quicktime";
-
-            long contentLength = end - start + 1;
-            Response r = newFixedLengthResponse(status, mime, bis, contentLength);
+            String mime = file.getName().endsWith(".mkv") ? "video/x-matroska" : "video/mp4";
+            Response r = newFixedLengthResponse(status, mime, bis, end - start + 1);
             r.addHeader("Accept-Ranges", "bytes");
             r.addHeader("Content-Range", "bytes " + start + "-" + end + "/" + fileSize);
-            r.addHeader("Content-Disposition", "inline; filename=\"" + file.getName() + "\"");
-            r.addHeader("Cache-Control", "no-cache, no-store");
-            r.addHeader("Access-Control-Allow-Origin", "*");
+            r.addHeader("Connection", "keep-alive");
             return r;
         } catch (IOException e) {
             return newFixedLengthResponse(Response.Status.INTERNAL_ERROR, "text/plain", e.getMessage());
@@ -285,9 +264,7 @@ public class LocalStreamServer extends NanoHTTPD {
         sb.append("v.addEventListener('timeupdate',function(){");
         sb.append("  if(!v._lr||Date.now()-v._lr>5000){v._lr=Date.now();cmd('updatepos',Math.round(v.currentTime*1000));}");
         sb.append("});");
-        sb.append("v.addEventListener('seeking',function(){");
-        sb.append("  cmd('seek',Math.round(v.currentTime*1000));");
-        sb.append("})");
+        sb.append("v.addEventListener('seeking',function(){cmd('seek',Math.round(v.currentTime*1000));});");
         sb.append("async function poll(){");
         sb.append("  try{");
         sb.append("    var r=await fetch('/status',{cache:'no-store'});");
