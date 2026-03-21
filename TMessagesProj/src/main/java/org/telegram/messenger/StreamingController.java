@@ -191,6 +191,7 @@ public class StreamingController {
             ? PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
             : PendingIntent.FLAG_UPDATE_CURRENT;
         Intent stopI = new Intent(ACTION_STOP);
+        stopI.setClass(appContext, Receiver.class);
         PendingIntent stopPi = PendingIntent.getBroadcast(appContext, 0, stopI, flags);
         return new Notification.Builder(appContext, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_upload)

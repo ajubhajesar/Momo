@@ -105,6 +105,7 @@ public class LocalStreamServer extends NanoHTTPD {
             Response r = newFixedLengthResponse(status, mime, bis, end - start + 1);
             r.addHeader("Accept-Ranges", "bytes");
             r.addHeader("Content-Range", "bytes " + start + "-" + end + "/" + fileSize);
+            r.addHeader("Connection", "keep-alive");
             return r;
         } catch (IOException e) {
             return newFixedLengthResponse(Response.Status.INTERNAL_ERROR, "text/plain", e.getMessage());
@@ -151,7 +152,7 @@ public class LocalStreamServer extends NanoHTTPD {
         sb.append(".btn svg{width:14px;height:14px;fill:currentColor;pointer-events:none}");
         sb.append(".ghost{background:#1f2937;color:#e5e7eb;border:1px solid #374151}");
         sb.append(".ghost:hover{background:#374151}");
-        sb.append(".ghost.dim{opacity:0.3;pointer-events:none}");
+        sb.append(".ghost.dim{opacity:0.35}");
         sb.append(".stop{background:#dc2626;color:#fff}");
         sb.append(".sp{padding:5px 9px;border-radius:5px;border:1px solid #374151;background:#1f2937;color:#9ca3af;cursor:pointer;font-size:12px;font-weight:600;-webkit-tap-highlight-color:transparent}");
         sb.append(".sp.on{background:#3b82f6;color:#fff;border-color:#3b82f6}");
@@ -166,7 +167,7 @@ public class LocalStreamServer extends NanoHTTPD {
         sb.append(".nav2{display:flex;gap:8px;padding:0 12px 12px}");
         sb.append(".nc{flex:1;background:#1f2937;border:1px solid #374151;border-radius:8px;overflow:hidden;cursor:pointer;-webkit-tap-highlight-color:transparent}");
         sb.append(".nc:hover{border-color:#3b82f6}");
-        sb.append(".nc.dim{opacity:0.3;pointer-events:none}");
+        sb.append(".nc.dim{opacity:0.35}");
         sb.append(".nct{aspect-ratio:16/9;background:#111827;display:flex;align-items:center;justify-content:center;font-size:24px}");
         sb.append(".ncl{font-size:10px;font-weight:700;text-transform:uppercase;color:#6b7280;padding:6px 8px 2px}");
         sb.append(".nctx{font-size:11px;color:#d1d5db;padding:0 8px 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}");
