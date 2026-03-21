@@ -25,6 +25,8 @@ public class LocalStreamServer extends NanoHTTPD {
         StreamingController sc = StreamingController.getInstance();
 
         switch (uri) {
+            case "/ping":
+                return jsonOK("{"ok":true,"file":"" + (sc.videoFile != null ? sc.videoFile.exists() + "," + sc.videoFile.length() : "null") + "","title":"" + escapeJson(sc.videoTitle) + ""}");
             case "/":
             case "/index.html":
                 return newFixedLengthResponse(Response.Status.OK, "text/html; charset=utf-8", buildHtml());
@@ -122,7 +124,7 @@ public class LocalStreamServer extends NanoHTTPD {
             Response r = newFixedLengthResponse(status, mime, bis, contentLength);
             r.addHeader("Accept-Ranges", "bytes");
             r.addHeader("Content-Range", "bytes " + start + "-" + end + "/" + fileSize);
-            r.addHeader("Content-Disposition", "inline; filename="" + file.getName() + """);
+            r.addHeader("Content-Disposition", "inline; filename=\"" + file.getName() + "\"");
             r.addHeader("Cache-Control", "no-cache, no-store");
             r.addHeader("Access-Control-Allow-Origin", "*");
             return r;
