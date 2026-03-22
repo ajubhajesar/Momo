@@ -99,6 +99,14 @@ public class LocalStreamServer extends NanoHTTPD {
             }
             if (end >= fileSize) end = fileSize - 1;
         }
+        // Wait up to 15s for Telegram to download bytes at the requested offset
+        // (videoPlayer.seekTo() will have triggered download prioritization)
+        if (start > 0) {
+            long deadline = System.currentTimeMillis() + 15_000;
+            while (file.length() <= start && System.currentTimeMillis() < deadline) {
+                try { Thread.sleep(200); } catch (InterruptedException e) { break; }
+            }
+        }
         try {
             FileInputStream fis = new FileInputStream(file);
             fis.getChannel().position(start);
@@ -176,10 +184,17 @@ public class LocalStreamServer extends NanoHTTPD {
         sb.append(".nctx{font-size:11px;color:#d1d5db;padding:0 8px 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}");
         sb.append(".kbd{font-size:11px;color:#6b7280;padding:8px 12px 12px;line-height:1.8}");
         sb.append(".k{display:inline-block;background:#1f2937;border:1px solid #374151;border-radius:4px;padding:1px 5px;font-family:monospace;font-size:10px;color:#9ca3af}");
+        sb.append(".play-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;cursor:pointer;}");
+        sb.append(".play-btn{background:rgba(0,0,0,0.5);border:none;border-radius:50%;width:64px;height:64px;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.2s;pointer-events:none;}");
+        sb.append("#vw:hover .play-btn{opacity:1;}");
+        sb.append(".play-btn svg{fill:#fff;width:32px;height:32px;}");
         sb.append("</style></head><body>");
         sb.append("<div id='ov'><div class='spinner'></div><p id='om'>Connecting to phone...</p></div>");
         sb.append("<nav><div class='nav-logo'>&#128225; Momogram</div><span class='nav-title' id='nt'></span></nav>");
-        sb.append("<div id='vw'><video id='v' playsinline controls preload='auto'></video></div>");
+        sb.append("<div id='vw' onclick='v.paused?v.play():v.pause()'>");
+        sb.append("<video id='v' playsinline preload='auto'></video>");
+        sb.append("<div class='play-overlay'><button class='play-btn' id='ppb'><svg viewBox='0 0 24 24'><path id='ppi' d='M8 5v14l11-7z'/></svg></button></div>");
+        sb.append("</div>");
         sb.append("<div class='ctrl'>");
         sb.append("<button class='btn ghost dim' id='pvb' onclick='prevVideo()'><svg viewBox='0 0 24 24'><path d='M6 6h2v12H6zm3.5 6 8.5 6V6z'/></svg>Prev</button>");
         sb.append("<button class='btn ghost dim' id='nxb' onclick='nextVideo()'>Next<svg viewBox='0 0 24 24'><path d='M6 18l8.5-6L6 6v12zm8.5-6L21 18V6z'/></svg></button>");
@@ -250,15 +265,16 @@ public class LocalStreamServer extends NanoHTTPD {
         sb.append("  try{navigator.mediaSession.setActionHandler('previoustrack',prevVideo);}catch(e){}");
         sb.append("  try{navigator.mediaSession.setActionHandler('nexttrack',nextVideo);}catch(e){}");
         sb.append("}");
-        sb.append("document.addEventListener('keydown',function(e){");
+        sb.append("document.addEventListener('keydown',function(e){if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;");
         sb.append("  if(e.target.tagName==='INPUT')return;");
-        sb.append("  if(e.code==='Space'||e.code==='KeyK'){e.preventDefault();v.paused?v.play():v.pause();}");
-        sb.append("  else if(e.code==='ArrowRight'||e.code==='KeyL'){e.preventDefault();v.currentTime+=10;cmd('updatepos',v.currentTime*1000);}");
-        sb.append("  else if(e.code==='ArrowLeft'||e.code==='KeyJ'){e.preventDefault();v.currentTime=Math.max(0,v.currentTime-10);cmd('updatepos',v.currentTime*1000);}");
-        sb.append("  else if(e.code==='ArrowUp'){e.preventDefault();v.volume=Math.min(1,v.volume+0.1);}");
-        sb.append("  else if(e.code==='ArrowDown'){e.preventDefault();v.volume=Math.max(0,v.volume-0.1);}");
+        sb.append("  e.preventDefault();e.stopPropagation();");
+        sb.append("  if(e.code==='Space'||e.code==='KeyK'){v.paused?v.play():v.pause();}");
+        sb.append("  else if(e.code==='ArrowRight'||e.code==='KeyL'){v.currentTime=Math.min(v.duration||0,v.currentTime+10);cmd('updatepos',Math.round(v.currentTime*1000));}");
+        sb.append("  else if(e.code==='ArrowLeft'||e.code==='KeyJ'){v.currentTime=Math.max(0,v.currentTime-10);cmd('updatepos',Math.round(v.currentTime*1000));}");
+        sb.append("  else if(e.code==='ArrowUp'){v.volume=Math.min(1,v.volume+0.1);}");
+        sb.append("  else if(e.code==='ArrowDown'){v.volume=Math.max(0,v.volume-0.1);}");
         sb.append("  else if(e.code==='KeyM'){v.muted=!v.muted;}");
-        sb.append("  else if(e.code==='KeyF'){if(v.requestFullscreen)v.requestFullscreen();}");
+        sb.append("  else if(e.code==='KeyF'){toggleFS();}");
         sb.append("  else if(e.code==='KeyN')nextVideo();");
         sb.append("  else if(e.code==='KeyP')prevVideo();");
         sb.append("  else if(e.code==='Comma'){var i=SPEEDS.indexOf(curSpeed);if(i>0){curSpeed=SPEEDS[i-1];v.playbackRate=curSpeed;}}");
@@ -297,6 +313,8 @@ public class LocalStreamServer extends NanoHTTPD {
         sb.append("    }else{om.textContent='Error '+r.status;setTimeout(connect,2000);}");
         sb.append("  }catch(e){om.textContent='Cannot reach phone. Same WiFi?';setTimeout(connect,2000);}");
         sb.append("}");
+        sb.append("v.addEventListener('play',function(){var p=document.getElementById('ppi');if(p)p.setAttribute('d','M6 19h4V5H6v14zm8-14v14h4V5h-4z');});");
+        sb.append("v.addEventListener('pause',function(){var p=document.getElementById('ppi');if(p)p.setAttribute('d','M8 5v14l11-7z');});");
         sb.append("connect();");
         sb.append("</script></body></html>");
         return sb.toString();
