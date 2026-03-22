@@ -6024,6 +6024,8 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
             android.content.ClipboardManager cm2 = (android.content.ClipboardManager)
                 parentActivity.getSystemService(android.content.Context.CLIPBOARD_SERVICE);
             cm2.setPrimaryClip(android.content.ClipData.newPlainText("url", url));
+            // Minimize app to background — screen off saves battery
+            parentActivity.moveTaskToBack(true);
             new AlertDialog.Builder(parentActivity, resourcesProvider)
                 .setTitle("Stream started")
                 .setMessage("Open in browser:\n\n" + url + "\n\n(Copied to clipboard)")

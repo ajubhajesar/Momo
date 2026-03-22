@@ -184,17 +184,10 @@ public class LocalStreamServer extends NanoHTTPD {
         sb.append(".nctx{font-size:11px;color:#d1d5db;padding:0 8px 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}");
         sb.append(".kbd{font-size:11px;color:#6b7280;padding:8px 12px 12px;line-height:1.8}");
         sb.append(".k{display:inline-block;background:#1f2937;border:1px solid #374151;border-radius:4px;padding:1px 5px;font-family:monospace;font-size:10px;color:#9ca3af}");
-        sb.append(".play-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;cursor:pointer;}");
-        sb.append(".play-btn{background:rgba(0,0,0,0.5);border:none;border-radius:50%;width:64px;height:64px;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.2s;pointer-events:none;}");
-        sb.append("#vw:hover .play-btn{opacity:1;}");
-        sb.append(".play-btn svg{fill:#fff;width:32px;height:32px;}");
-        sb.append("</style></head><body>");
+                sb.append("</style></head><body>");
         sb.append("<div id='ov'><div class='spinner'></div><p id='om'>Connecting to phone...</p></div>");
         sb.append("<nav><div class='nav-logo'>&#128225; Momogram</div><span class='nav-title' id='nt'></span></nav>");
-        sb.append("<div id='vw' onclick='v.paused?v.play():v.pause()'>");
-        sb.append("<video id='v' playsinline preload='auto'></video>");
-        sb.append("<div class='play-overlay'><button class='play-btn' id='ppb'><svg viewBox='0 0 24 24'><path id='ppi' d='M8 5v14l11-7z'/></svg></button></div>");
-        sb.append("</div>");
+        sb.append("<div id='vw'><video id='v' playsinline preload='auto'></video></div>");
         sb.append("<div class='ctrl'>");
         sb.append("<button class='btn ghost dim' id='pvb' onclick='prevVideo()'><svg viewBox='0 0 24 24'><path d='M6 6h2v12H6zm3.5 6 8.5 6V6z'/></svg>Prev</button>");
         sb.append("<button class='btn ghost dim' id='nxb' onclick='nextVideo()'>Next<svg viewBox='0 0 24 24'><path d='M6 18l8.5-6L6 6v12zm8.5-6L21 18V6z'/></svg></button>");
@@ -313,9 +306,7 @@ public class LocalStreamServer extends NanoHTTPD {
         sb.append("    }else{om.textContent='Error '+r.status;setTimeout(connect,2000);}");
         sb.append("  }catch(e){om.textContent='Cannot reach phone. Same WiFi?';setTimeout(connect,2000);}");
         sb.append("}");
-        sb.append("v.addEventListener('play',function(){var p=document.getElementById('ppi');if(p)p.setAttribute('d','M6 19h4V5H6v14zm8-14v14h4V5h-4z');});");
-        sb.append("v.addEventListener('pause',function(){var p=document.getElementById('ppi');if(p)p.setAttribute('d','M8 5v14l11-7z');});");
-        sb.append("connect();");
+                sb.append("connect();");
         sb.append("</script></body></html>");
         return sb.toString();
     }

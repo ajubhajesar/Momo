@@ -945,8 +945,16 @@
             android:exported="false">
             <intent-filter>
                 <action android:name="com.telegram.STREAM_STOP"/>
+                <action android:name="com.telegram.STREAM_NEXT"/>
+                <action android:name="com.telegram.STREAM_PREV"/>
             </intent-filter>
         </receiver>
+
+        <service
+            android:name=".StreamingController$StreamService"
+            android:exported="false"
+            android:stopWithTask="false"
+            android:foregroundServiceType="dataSync"/>
 
         <receiver
             android:name=".NotificationsDisabledReceiver"
