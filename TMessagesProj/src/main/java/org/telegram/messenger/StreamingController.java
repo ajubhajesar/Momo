@@ -28,6 +28,8 @@ public class StreamingController {
     public volatile float   speed         = 1.0f;
     public volatile String  fileName      = "";   // for FileLoader priority
     public volatile int     currentAccount = 0;
+    public volatile org.telegram.tgnet.TLRPC.Document document = null;
+    public volatile Object  parentObject   = null;
 
     // Listeners called when browser clicks next/prev
     public volatile Runnable nextListener;
@@ -61,6 +63,7 @@ public class StreamingController {
 
     public void startStreaming(Context ctx, File file, String title, long durationMs,
                                boolean next, boolean prev, float spd, String fn, int account,
+                               org.telegram.tgnet.TLRPC.Document doc, Object parent,
                                Runnable onNext, Runnable onPrev,
                                SeekListener onSeek, Runnable onStop) {
         appContext    = ctx.getApplicationContext();
@@ -72,6 +75,8 @@ public class StreamingController {
         speed         = spd;
         fileName      = fn != null ? fn : "";
         currentAccount = account;
+        document      = doc;
+        parentObject  = parent;
         nextListener  = onNext;
         prevListener  = onPrev;
         seekListener  = onSeek;
@@ -100,6 +105,7 @@ public class StreamingController {
 
     public void updateVideo(File file, String title, long durationMs,
                             boolean next, boolean prev, float spd, String fn,
+                            org.telegram.tgnet.TLRPC.Document doc, Object parent,
                             Runnable onNext, Runnable onPrev,
                             SeekListener onSeek, Runnable onStop) {
         videoFile  = file;
@@ -109,6 +115,7 @@ public class StreamingController {
         hasPrev    = prev;
         speed      = spd;
         if (fn != null) fileName = fn;
+        if (doc != null) { document = doc; parentObject = parent; }
         if (onNext != null) nextListener = onNext;
         if (onPrev != null) prevListener = onPrev;
         if (onSeek != null) seekListener = onSeek;

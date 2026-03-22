@@ -6000,6 +6000,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 dur,
                 rightImage.hasImageSet(), leftImage.hasImageSet(),
                 currentVideoSpeed, fn, currentAccount,
+                currentMessageObject.getDocument(), currentMessageObject,
                 () -> AndroidUtilities.runOnUIThread(this::goToNext),
                 () -> AndroidUtilities.runOnUIThread(this::goToPrev),
                 posMs -> { /* download priority handled inside StreamingController */ },
@@ -10997,6 +10998,8 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 sc2.fileName = fn2;
                 sc2.nextListener = () -> AndroidUtilities.runOnUIThread(this::goToNext);
                 sc2.prevListener = () -> AndroidUtilities.runOnUIThread(this::goToPrev);
+                sc2.document = currentMessageObject.getDocument();
+                sc2.parentObject = currentMessageObject;
                 // Restore saved position so browser continues where phone left off.
                 // forceSeekTo is 0-1 float set by the position-restore block above.
                 if (currentMessageObject.forceSeekTo >= 0 && dur2 > 0) {
