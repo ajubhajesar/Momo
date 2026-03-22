@@ -9,12 +9,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.PipedInputStream;
-import java.io.PipedOutputStream;
-import java.io.RandomAccessFile;
 import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 public class LocalStreamServer extends NanoHTTPD {
 
@@ -72,9 +67,13 @@ public class LocalStreamServer extends NanoHTTPD {
             }
 
             case "/video": {
-                if (sc.videoFile == null && sc.document == null)
+                File f = sc.videoFile;
+                if (f == null || !f.exists())
                     return newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "no video");
-                return serveFile(session, sc);
+                // Use document size so browser knows full length even while downloading
+                long declaredSize = (sc.document != null && sc.document.size > 0)
+                    ? sc.document.size : f.length();
+                return serveFile(session, f, declaredSize);
             }
 
             case "/thumb": {
@@ -87,138 +86,7 @@ public class LocalStreamServer extends NanoHTTPD {
         return newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "not found");
     }
 
-    private Response serveFile(IHTTPSession session, StreamingController sc) {
-        // Use Telegram's download infrastructure so seeks trigger download priority
-        org.telegram.tgnet.TLRPC.Document doc = sc.document;
-        File fallback = sc.videoFile;
-
-        // If no document (local file), fall back to raw serving
-        if (doc == null || doc.id == 0) {
-            return serveFileDirect(session, fallback);
-        }
-
-        long fileSize = doc.size > 0 ? doc.size : (fallback != null ? fallback.length() : 0);
-        if (fileSize <= 0) return newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "no file");
-
-        // Parse range header
-        String range = session.getHeaders().get("range");
-        long start = 0, end = fileSize - 1;
-        Response.Status status = Response.Status.OK;
-        if (range != null && range.startsWith("bytes=")) {
-            status = Response.Status.PARTIAL_CONTENT;
-            String[] parts = range.substring(6).split("-");
-            try { start = Long.parseLong(parts[0].trim()); } catch (Exception ignored) {}
-            if (parts.length > 1 && !parts[1].trim().isEmpty()) {
-                try { end = Long.parseLong(parts[1].trim()); } catch (Exception ignored) {}
-            }
-            if (end >= fileSize) end = fileSize - 1;
-        }
-        final long rangeStart = start;
-        final long rangeEnd   = end;
-        final long contentLen = rangeEnd - rangeStart + 1;
-        final long fFileSize  = fileSize;
-        final int  account    = sc.currentAccount;
-        final Object parent   = sc.parentObject;
-        final org.telegram.tgnet.TLRPC.Document fDoc = doc;
-
-        // Stream listener: wakes blocked read thread when new bytes arrive
-        final CountDownLatch[] latchRef = {null};
-        final Object lock = new Object();
-        FileLoadOperationStream listener = () -> {
-            synchronized (lock) {
-                if (latchRef[0] != null) { latchRef[0].countDown(); latchRef[0] = null; }
-            }
-        };
-
-        // Register with Telegram's downloader at the requested byte offset
-        FileLoadOperation op = FileLoader.getInstance(account)
-            .loadStreamFile(listener, fDoc, null, parent, rangeStart, false,
-                FileLoader.PRIORITY_HIGH);
-        if (op == null) return serveFileDirect(session, fallback);
-
-        // Pipe bytes from download → HTTP response
-        PipedOutputStream pOut;
-        PipedInputStream  pIn;
-        try {
-            pOut = new PipedOutputStream();
-            pIn  = new PipedInputStream(pOut, 256 * 1024);
-        } catch (IOException e) {
-            op.removeStreamListener(listener);
-            return serveFileDirect(session, fallback);
-        }
-
-        final FileLoadOperation fOp  = op;
-        final PipedOutputStream fOut = pOut;
-
-        Thread t = new Thread(() -> {
-            RandomAccessFile raf = null;
-            File             openedFile = null;
-            try {
-                long offset    = rangeStart;
-                long remaining = contentLen;
-                byte[] buf     = new byte[128 * 1024];
-
-                while (remaining > 0) {
-                    // How many contiguous bytes are available at offset?
-                    long[] avail = fOp.getDownloadedLengthFromOffset(offset, Math.min(remaining, buf.length));
-                    long ready   = avail[0];
-                    boolean done = avail[1] == 1;
-
-                    if (ready == 0) {
-                        if (done) break; // file finished but gap — shouldn't happen
-                        // Wait for Telegram to download more
-                        CountDownLatch latch = new CountDownLatch(1);
-                        synchronized (lock) { latchRef[0] = latch; }
-                        FileLoader.getInstance(account).loadStreamFile(listener, fDoc, null, parent,
-                            offset, true, FileLoader.PRIORITY_HIGH);
-                        latch.await(10, TimeUnit.SECONDS);
-                        continue;
-                    }
-
-                    // Open/reopen file if changed (e.g. temp→final rename)
-                    File cur = fOp.getCurrentFileFast();
-                    if (cur == null) cur = fOp.getCurrentFile();
-                    if (cur != null && !cur.equals(openedFile)) {
-                        if (raf != null) try { raf.close(); } catch (Exception ignored) {}
-                        openedFile = cur;
-                        raf = new RandomAccessFile(cur, "r");
-                        raf.seek(offset);
-                    }
-                    if (raf == null) { Thread.sleep(100); continue; }
-
-                    int toRead  = (int) Math.min(Math.min(ready, remaining), buf.length);
-                    int didRead = raf.read(buf, 0, toRead);
-                    if (didRead > 0) {
-                        fOut.write(buf, 0, didRead);
-                        offset    += didRead;
-                        remaining -= didRead;
-                    }
-                }
-            } catch (Exception ignored) {
-            } finally {
-                fOp.removeStreamListener(listener);
-                if (raf != null) try { raf.close(); } catch (Exception ignored2) {}
-                try { fOut.close(); } catch (Exception ignored2) {}
-            }
-        }, "lss-stream");
-        t.setDaemon(true);
-        t.start();
-
-        String mime = fDoc.mime_type != null && !fDoc.mime_type.isEmpty()
-            ? fDoc.mime_type : "video/mp4";
-        Response r = newFixedLengthResponse(status, mime, pIn, contentLen);
-        r.addHeader("Accept-Ranges",  "bytes");
-        r.addHeader("Content-Range",  "bytes " + rangeStart + "-" + rangeEnd + "/" + fFileSize);
-        r.addHeader("Cache-Control",  "no-cache, no-store");
-        r.addHeader("Access-Control-Allow-Origin", "*");
-        return r;
-    }
-
-    // Fallback: raw FileInputStream (for fully-downloaded local files)
-    private Response serveFileDirect(IHTTPSession session, File file) {
-        if (file == null || !file.exists())
-            return newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "no file");
-        long fileSize = file.length();
+    private Response serveFile(IHTTPSession session, File file, long fileSize) {
         String range  = session.getHeaders().get("range");
         long start = 0, end = fileSize - 1;
         Response.Status status = Response.Status.OK;
@@ -234,10 +102,12 @@ public class LocalStreamServer extends NanoHTTPD {
         try {
             FileInputStream fis = new FileInputStream(file);
             fis.getChannel().position(start);
+            java.io.BufferedInputStream bis = new java.io.BufferedInputStream(fis, 256 * 1024);
             String mime = file.getName().endsWith(".mkv") ? "video/x-matroska" : "video/mp4";
-            Response r = newFixedLengthResponse(status, mime, fis, end - start + 1);
+            Response r = newFixedLengthResponse(status, mime, bis, end - start + 1);
             r.addHeader("Accept-Ranges", "bytes");
             r.addHeader("Content-Range", "bytes " + start + "-" + end + "/" + fileSize);
+            r.addHeader("Connection", "keep-alive");
             r.addHeader("Access-Control-Allow-Origin", "*");
             return r;
         } catch (IOException e) {

@@ -6003,7 +6003,12 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 currentMessageObject.getDocument(), currentMessageObject,
                 () -> AndroidUtilities.runOnUIThread(this::goToNext),
                 () -> AndroidUtilities.runOnUIThread(this::goToPrev),
-                posMs -> { /* download priority handled inside StreamingController */ },
+                posMs -> {
+                    // Seek phone player → Telegram reprioritizes download from that position
+                    AndroidUtilities.runOnUIThread(() -> {
+                        if (videoPlayer != null) videoPlayer.seekTo(posMs);
+                    });
+                },
                 () -> {
                     // Stop: resume phone from browser position
                     long resumePos = sc.position > 0 ? sc.position : savedPos;
