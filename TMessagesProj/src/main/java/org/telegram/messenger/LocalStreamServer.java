@@ -9,6 +9,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
 import java.util.Map;
 
 public class LocalStreamServer extends NanoHTTPD {
@@ -87,7 +90,7 @@ public class LocalStreamServer extends NanoHTTPD {
     }
 
     private Response serveFile(IHTTPSession session, File file, long fileSize) {
-        String range  = session.getHeaders().get("range");
+        String range = session.getHeaders().get("range");
         long start = 0, end = fileSize - 1;
         Response.Status status = Response.Status.OK;
         if (range != null && range.startsWith("bytes=")) {
@@ -99,28 +102,68 @@ public class LocalStreamServer extends NanoHTTPD {
             }
             if (end >= fileSize) end = fileSize - 1;
         }
-        // Wait up to 15s for Telegram to download bytes at the requested offset
-        // (videoPlayer.seekTo() will have triggered download prioritization)
+
+        // Wait for start position to be downloaded (up to 15s)
         if (start > 0) {
             long deadline = System.currentTimeMillis() + 15_000;
             while (file.length() <= start && System.currentTimeMillis() < deadline) {
                 try { Thread.sleep(200); } catch (InterruptedException e) { break; }
             }
         }
+
+        final long fStart   = start;
+        final long fEnd     = end;
+        final long fSize    = fileSize;
+        final File fFile    = file;
+        final Response.Status fStatus = status;
+
+        // Use a pipe so we can stream bytes as they download (tail-f style)
+        PipedOutputStream pOut;
+        PipedInputStream  pIn;
         try {
-            FileInputStream fis = new FileInputStream(file);
-            fis.getChannel().position(start);
-            java.io.BufferedInputStream bis = new java.io.BufferedInputStream(fis, 256 * 1024);
-            String mime = file.getName().endsWith(".mkv") ? "video/x-matroska" : "video/mp4";
-            Response r = newFixedLengthResponse(status, mime, bis, end - start + 1);
-            r.addHeader("Accept-Ranges", "bytes");
-            r.addHeader("Content-Range", "bytes " + start + "-" + end + "/" + fileSize);
-            r.addHeader("Connection", "keep-alive");
-            r.addHeader("Access-Control-Allow-Origin", "*");
-            return r;
+            pOut = new PipedOutputStream();
+            pIn  = new PipedInputStream(pOut, 256 * 1024);
         } catch (IOException e) {
             return newFixedLengthResponse(Response.Status.INTERNAL_ERROR, "text/plain", e.getMessage());
         }
+
+        Thread t = new Thread(() -> {
+            byte[] buf = new byte[128 * 1024];
+            try (RandomAccessFile raf = new RandomAccessFile(fFile, "r")) {
+                raf.seek(fStart);
+                long remaining = fEnd - fStart + 1;
+                while (remaining > 0) {
+                    int toRead = (int) Math.min(remaining, buf.length);
+                    int didRead = raf.read(buf, 0, toRead);
+                    if (didRead > 0) {
+                        pOut.write(buf, 0, didRead);
+                        remaining -= didRead;
+                    } else {
+                        // Hit EOF - file still downloading, wait for more bytes
+                        long waited = 0;
+                        while (fFile.length() <= raf.getFilePointer() && waited < 30_000) {
+                            Thread.sleep(300);
+                            waited += 300;
+                        }
+                        if (waited >= 30_000) break; // timeout, give up
+                        // File grew - raf position is still correct, loop continues
+                    }
+                }
+            } catch (Exception ignored) {
+            } finally {
+                try { pOut.close(); } catch (Exception ignored) {}
+            }
+        }, "lss-pipe");
+        t.setDaemon(true);
+        t.start();
+
+        String mime = fFile.getName().endsWith(".mkv") ? "video/x-matroska" : "video/mp4";
+        Response r = newFixedLengthResponse(fStatus, mime, pIn, fEnd - fStart + 1);
+        r.addHeader("Accept-Ranges", "bytes");
+        r.addHeader("Content-Range", "bytes " + fStart + "-" + fEnd + "/" + fSize);
+        r.addHeader("Connection", "keep-alive");
+        r.addHeader("Access-Control-Allow-Origin", "*");
+        return r;
     }
 
     private Response serveThumb(File file) {
