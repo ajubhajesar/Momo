@@ -187,7 +187,7 @@ public class LocalStreamServer extends NanoHTTPD {
                 sb.append("</style></head><body>");
         sb.append("<div id='ov'><div class='spinner'></div><p id='om'>Connecting to phone...</p></div>");
         sb.append("<nav><div class='nav-logo'>&#128225; Momogram</div><span class='nav-title' id='nt'></span></nav>");
-        sb.append("<div id='vw'><video id='v' playsinline preload='auto'></video></div>");
+        sb.append("<div id='vw'><video id='v' playsinline controls preload='auto'></video></div>");
         sb.append("<div class='ctrl'>");
         sb.append("<button class='btn ghost dim' id='pvb' onclick='prevVideo()'><svg viewBox='0 0 24 24'><path d='M6 6h2v12H6zm3.5 6 8.5 6V6z'/></svg>Prev</button>");
         sb.append("<button class='btn ghost dim' id='nxb' onclick='nextVideo()'>Next<svg viewBox='0 0 24 24'><path d='M6 18l8.5-6L6 6v12zm8.5-6L21 18V6z'/></svg></button>");
