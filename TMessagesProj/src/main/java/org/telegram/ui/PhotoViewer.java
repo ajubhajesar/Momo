@@ -6308,7 +6308,7 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                 }
                 WindowManager manager = (WindowManager) parentActivity.getSystemService(Activity.WINDOW_SERVICE);
                 int displayRotation = manager.getDefaultDisplay().getRotation();
-                parentActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_USER_LANDSCAPE);
+                parentActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
                 toggleActionBar(false, false);
             });
         }
@@ -10640,23 +10640,15 @@ public class PhotoViewer implements NotificationCenter.NotificationCenterDelegat
                     if (orientationEventListener == null || aspectRatioFrameLayout == null || aspectRatioFrameLayout.getVisibility() != View.VISIBLE) {
                         return;
                     }
-                    if (parentActivity != null && fullscreenedByButton != 0) {
-                        if (fullscreenedByButton == 1) {
-                            if (orientation >= 270 - 30 && orientation <= 270 + 30) {
-                                wasRotated = true;
-                            } else if (wasRotated && orientation > 0 && (orientation >= 330 || orientation <= 30)) {
-                                parentActivity.setRequestedOrientation(prevOrientation);
-                                fullscreenedByButton = 0;
-                                wasRotated = false;
-                            }
-                        } else {
-                            if (orientation > 0 && (orientation >= 330 || orientation <= 30)) {
-                                wasRotated = true;
-                            } else if (wasRotated && orientation >= 270 - 30 && orientation <= 270 + 30) {
-                                parentActivity.setRequestedOrientation(prevOrientation);
-                                fullscreenedByButton = 0;
-                                wasRotated = false;
-                            }
+                    // AJ: when fullscreened by button, sensor cannot exit fullscreen
+                    // User must tap the exit button explicitly
+                    if (parentActivity != null && fullscreenedByButton == 0) {
+                        // Auto-rotate behavior only when not button-locked
+                        if (orientation >= 270 - 30 && orientation <= 270 + 30) {
+                            wasRotated = true;
+                        } else if (wasRotated && orientation > 0 && (orientation >= 330 || orientation <= 30)) {
+                            parentActivity.setRequestedOrientation(prevOrientation);
+                            wasRotated = false;
                         }
                     }
                 }
